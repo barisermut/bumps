@@ -1,0 +1,49 @@
+{
+  "name": "getbumps",
+  "version": "1.0.2",
+  "description": "Local dashboard for your Cursor chat history — patterns, stalls, and flow. All data stays on your machine. Run: npx getbumps",
+  "bin": {
+    "getbumps": "bin/getbumps.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "publish-dist",
+    "docs/npm-publish.md",
+    "package.json",
+    "README.md"
+  ],
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "vitest run --config vitest.config.cjs",
+    "prepack": "node scripts/check-dashboard-dist.js && node scripts/prepare-publish-dist.js",
+    "postpack": "node -e \"require('fs').rmSync('publish-dist',{recursive:true,force:true})\""
+  },
+  "keywords": [
+    "cursor",
+    "dashboard",
+    "local",
+    "privacy"
+  ],
+  "author": "",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/barisermut/bumps.git"
+  },
+  "homepage": "https://github.com/barisermut/bumps#readme",
+  "bugs": {
+    "url": "https://github.com/barisermut/bumps/issues"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "supertest": "^7.2.2",
+    "vitest": "^3.2.4"
+  }
+}
