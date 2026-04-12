@@ -119,7 +119,7 @@ node bin/getbumps.js
 - **Dashboard dev server** (hot reload): `cd dashboard && npm run dev`  
 - **Parser / analyzer only:** `node src/parser.js` · `node src/analyzer.js`  
 - **Tests:** `npm test`  
-- **Architecture & conventions:** see [CLAUDE.md](CLAUDE.md) and [docs/bumps-v1-spec.md](docs/bumps-v1-spec.md).
+- **Product direction:** [docs/bumps-north-star.md](docs/bumps-north-star.md) · **Architecture & conventions:** [CLAUDE.md](CLAUDE.md) and [docs/bumps-v1-spec.md](docs/bumps-v1-spec.md).
 
 If `dashboard/dist` is missing, the CLI tells you to build the dashboard first. **`npm pack`** and **`npm publish`** both run **`prepack`**, which copies `dashboard/dist` into `publish-dist/` for the tarball — the step fails until the dashboard is built. For a dry run without publishing: `npm pack --dry-run`.
 

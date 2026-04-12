@@ -1,5 +1,7 @@
 # Bumps — v1 Product Spec
 
+Standing direction for humane vs pattern layers and what to prioritize: [bumps-north-star.md](./bumps-north-star.md).
+
 ## What It Is
 
 A local dashboard that analyzes your Cursor conversation history and surfaces the patterns behind why your projects stall — and what's actually working when you're in flow.

@@ -2,6 +2,8 @@
 
 Planned improvements now that v1 is shipped (**[getbumps](https://www.npmjs.com/package/getbumps)**). The v1 release checklist is complete — see `bumps-pre-ship-checklist.md` (archive). **Later npm releases:** `docs/npm-publish.md`.
 
+**Product direction:** use [bumps-north-star.md](./bumps-north-star.md) as the standing lens for humane vs pattern layers, trust, and what to prioritize.
+
 ---
 
 ## v1.5
@@ -42,8 +44,6 @@ v1 assumes **macOS** paths (`~/Library/Application Support/Cursor/...`, workspac
 - Map Cursor’s **Windows** locations: global DB, per-workspace DBs, agent chats / project transcripts (typically under `%APPDATA%` / user profile; exact layout must be verified against current Cursor installs).
 - Centralize **OS-specific roots** in `src/lib/` (extend existing path helpers); keep SQLite **read-only** and preserve the same merge/dedupe behavior as macOS.
 - Exercise the full flow on a real Windows machine: `npx getbumps`, parser counts, dashboard load. Document Node.js expectations in the README.
-
-**Linux:** treat as a follow-on once Cursor’s on-disk layout on Linux is documented and tested the same way (often bundled with path-helper refactors for Windows).
 
 ### Thinking time as difficulty signal
 

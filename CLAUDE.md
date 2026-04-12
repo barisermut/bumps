@@ -4,7 +4,7 @@ Guidance for AI assistants (Claude Code, Cursor, etc.) working in this repositor
 
 ## What this is
 
-Bumps is a **local-only** dashboard that reads Cursor conversation history and surfaces patterns (stalls vs flow). Product intent and UX live in `docs/bumps-v1-spec.md`.
+Bumps is a **local-only** dashboard that reads Cursor conversation history and surfaces patterns (stalls vs flow). Standing product direction: `docs/bumps-north-star.md`. Detailed v1 intent and UX: `docs/bumps-v1-spec.md`.
 
 ## Commands
 
@@ -51,6 +51,7 @@ npm run build         # output → dashboard/dist/
 
 ## Where to look next
 
+- **North star (always):** `docs/bumps-north-star.md` — humane vs pattern layers, roadmap lens, anti-patterns
 - **Shipped:** [getbumps on npm](https://www.npmjs.com/package/getbumps) · [GitHub](https://github.com/barisermut/bumps) — future publishes: `docs/npm-publish.md`
 - **Release checklist (archive):** `docs/bumps-pre-ship-checklist.md`
 - **After v1:** `docs/bumps-post-ship-roadmap.md` (v1.5 + v2 ideas); index `docs/bumps-v1.5-backlog.md`

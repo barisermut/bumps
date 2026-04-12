@@ -53,4 +53,4 @@
 
 ---
 
-**Related:** CLI UX — `docs/bumps-cli-flow.md`. Post-ship ideas — `docs/bumps-post-ship-roadmap.md`.
+**Related:** North star — `docs/bumps-north-star.md`. CLI UX — `docs/bumps-cli-flow.md`. Post-ship ideas — `docs/bumps-post-ship-roadmap.md`.
