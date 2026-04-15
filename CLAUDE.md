@@ -1,64 +1,60 @@
 # CLAUDE.md
 
-Guidance for AI assistants (Claude Code, Cursor, etc.) working in this repository.
+Guidance for AI assistants working in this repository. Keep sessions focused — one feature per prompt, commit before starting new work.
 
 ## What this is
 
-Bumps is a **local-only** dashboard that reads Cursor conversation history and surfaces patterns (stalls vs flow). Standing product direction: `docs/bumps-north-star.md`. Detailed v1 intent and UX: `docs/bumps-v1-spec.md`.
+Bumps is a **local-only** CLI dashboard that reads Cursor conversation history and surfaces behavioral patterns. Data never leaves the machine. Standing product direction: `docs/bumps-north-star.md`.
 
 ## Commands
 
 ```bash
-# Root — parser, analyzer, server (CommonJS)
+# Root (CommonJS)
 npm install
 node src/parser.js
-node src/analyzer.js
 node src/analyzer.js --project=foo --timeRange=7d
-npx getbumps          # end users: default entry; does not modify cwd project
-node bin/getbumps.js  # same CLI from a clone (build dashboard/dist first)
-node src/server.js    # dev: minimal logs, same API — http://127.0.0.1:3456
-npm test              # Vitest: test/*.test.js (lib, analyzer contract, server)
+node src/server.js          # dev server → http://127.0.0.1:3456
+npm test                    # Vitest: 42 tests across test/*.test.js
+npx getbumps                # end-user entry point
 
-# Dashboard (ESM) — Vite dev or build for server static
+# Dashboard (ESM)
 cd dashboard && npm install
-npm run dev           # http://localhost:5173
-npm run build         # output → dashboard/dist/
+npm run dev                 # → http://localhost:5173
+npm run build               # → dashboard/dist/
 ```
+
+## Stack
+
+Node + Express + `better-sqlite3` (read-only) · React 19 + Vite + Tailwind v4 + Recharts + Lucide
+
+Root package is `"type": "commonjs"`. Dashboard is ESM. Do not mix module systems.
 
 ## Code map
 
 | Area | Role |
 |------|------|
-| `src/parser.js` | `parse()` — global `state.vscdb`, workspace DBs, agent `store.db`, JSONL transcripts; **one canonical conversation per `composerId`** with merged fields from overlapping sources |
-| `src/lib/mergeConversationSources.js` | Normalizes conversations with `sourceCoverage`, `completenessFlags`; merges transcript/store into workspace-backed rows |
-| `src/lib/transcriptSignals.js` | Best-effort extraction from agent JSONL (skills, subagent hints, linked transcripts, attachment/image flags) |
-| `src/lib/parseStats.js` | Parse counters including overlap merges and skipped header-only rows |
-| `src/analyzer.js` | `analyze(parsed, { project, timeRange })` → widget payloads plus top-level **`meta`** (exact session counts, coverage summaries, `trustNote`) |
-| `src/server.js` | Express: `/api/projects`, `/api/insights` (JSON includes `meta`), static dashboard |
-| `dashboard/` | Filters, five widgets, modals; **What Worked** includes **Helpful Support** (`activeTools`); copy in `src/lib/formatWhatWorked.js`; stat cards use `insights.meta.filteredConversationCount` and optional trust subline |
-
-**Parser output (high level):** `parse()` returns `conversations`, `parseStats`, and **`parserMeta`** (`sourceSummary`, `mergeSummary`). Each conversation may include `sourceCoverage`, `completenessFlags`, `skillsReferenced`, `subagentsReferenced`, `sessionContextSignals`, `linkedTranscriptIds`, `attachmentsSummary`.
-
-**Stack (short):** Node, Express, `better-sqlite3` (read-only), React 19, Vite, Tailwind v4, Recharts, Lucide.
-
-**Session counts vs other tools:** Bumps reports **canonical** conversations (deduped by `composerId`). Tools that sum per-storage “sessions” without collapsing overlaps can show higher totals. See `docs/bumps-post-ship-roadmap.md` → *Session count semantics*.
+| `src/parser.js` | `parse()` — reads global `state.vscdb`, workspace DBs, agent `store.db`, JSONL transcripts. One canonical conversation per `composerId`. |
+| `src/analyzer.js` | `analyze(parsed, { project, timeRange })` → widget payloads + `meta` (session counts, coverage, `trustNote`) |
+| `src/server.js` | Express: `/api/projects`, `/api/insights`, serves `dashboard/dist/` |
+| `src/lib/` | Helpers: path resolution, merge logic, transcript signals, timestamps |
+| `dashboard/` | Five widgets, filter bar, modals. Copy helpers in `src/lib/formatWhatWorked.js` |
 
 ## Rules
 
-- Data never leaves the machine; open DBs read-only.
-- v1 targets **Cursor only** (not Claude Code / Windsurf).
-- Root package is `"type": "commonjs"`; dashboard is ESM.
+- Data never leaves the machine. Open all DBs read-only.
+- V1 targets Cursor only — do not add Claude Code or Windsurf support yet.
+- No LLM calls, no external APIs, no telemetry.
+- Simple, boring, working code over clever solutions.
+- Never change copy or labels without explicit instruction.
+- Commit before starting any new feature or refactor.
 
-## Where to look next
+## Key docs
 
-- **North star (always):** `docs/bumps-north-star.md` — humane vs pattern layers, roadmap lens, anti-patterns
-- **Shipped:** [getbumps on npm](https://www.npmjs.com/package/getbumps) · [GitHub](https://github.com/barisermut/bumps) — future publishes: `docs/npm-publish.md`
-- **Release checklist (archive):** `docs/bumps-pre-ship-checklist.md`
-- **After v1:** `docs/bumps-post-ship-roadmap.md` (v1.5 + v2 ideas); index `docs/bumps-v1.5-backlog.md`
-- **CLI UX:** `docs/bumps-cli-flow.md` (primary command: **`npx getbumps`**)
-
-For response shapes and message fields, read `src/analyzer.js` and `src/parser.js` rather than duplicating them here.
-
-## Tests
-
-`npm test` — Vitest, **10** files / **42** tests (`test/*.test.js`), including merge helpers, transcript signals, analyzer contract (`meta`), server API.
+| Doc | Purpose |
+|-----|---------|
+| `docs/bumps-north-star.md` | Product philosophy — read before any UI or copy change |
+| `docs/bumps-v1-spec.md` | What shipped in V1 |
+| `docs/bumps-v1.5-implementation-plan.md` | Active — five phases, execute one at a time |
+| `docs/bumps-v2-vision.md` | Mirror vs Mentor vision + V2.5 and V3 backlog |
+| `docs/bumps-cli-flow.md` | Current V1 CLI UX spec — `npx getbumps` behavior |
+| `docs/npm-publish.md` | npm publish steps |
