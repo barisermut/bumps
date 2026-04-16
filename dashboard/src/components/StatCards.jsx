@@ -1,4 +1,4 @@
-import { Activity, FolderOpen, Zap, Clock } from 'lucide-react'
+import { Activity, FolderOpen, Zap, Clock, ShieldCheck } from 'lucide-react'
 import WidgetEmptyState from './WidgetEmptyState'
 import { noSessionsInRange, FILTER_EMPTY_HINT } from '../lib/insightsEmpty'
 
@@ -70,9 +70,11 @@ export default function StatCards({ insights }) {
     }
   }
 
-  // Biggest time sink
+  // Where effort piled up (formerly biggest time sink)
   const timeSinkValue = topBump ? topBump.topic : '—'
-  const timeSinkLabel = topBump ? `${Math.round(topBump.percentage)}% of sessions` : ''
+  const timeSinkLabel = topBump
+    ? `avg ${topBump.avgUserMessages} messages across ${topBump.count} sessions`
+    : ''
   const trustNote = insights.meta?.trustNote
 
   return (
@@ -81,10 +83,13 @@ export default function StatCards({ insights }) {
         <Card icon={Activity} value={totalSessions} label="Total sessions analyzed" />
         <Card icon={FolderOpen} value={mostActiveProject} label={mostActiveCount ? `${mostActiveCount} sessions` : 'Most active project'} />
         <Card icon={Zap} value={fastestStyle} label={fastestAvg || 'Fastest prompt style'} />
-        <Card icon={Clock} value={timeSinkValue} label={timeSinkLabel || 'Biggest time sink'} />
+        <Card icon={Clock} value={timeSinkValue} label={timeSinkLabel || 'Where effort piled up'} />
       </div>
       {trustNote && (
-        <p className="text-[11px] text-text-muted/70 mt-2 px-1">{trustNote}</p>
+        <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-border-subtle/70 bg-surface-900/60 px-3 py-1.5">
+          <ShieldCheck size={12} className="text-text-muted/70 shrink-0" />
+          <p className="text-[11px] text-text-muted/80 leading-tight min-w-0">{trustNote}</p>
+        </div>
       )}
     </div>
   )

@@ -14,11 +14,16 @@ const CATEGORIES = [
   { key: 'mcpServers', label: 'Most Used MCP', icon: Plug },
 ]
 
+function stripSkillPrefix(text) {
+  if (typeof text !== 'string') return text
+  return text.startsWith('skill ') ? text.slice('skill '.length) : text
+}
+
 function InsightRow({ icon: Icon, label, finding, onDetails }) {
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-surface-800/60 last:border-b-0">
+    <div className="flex flex-1 min-h-0 items-center gap-2 py-1 border-b border-surface-800/60 last:border-b-0">
       <Icon size={14} className="text-text-muted/50 shrink-0" />
-      <span className="text-[11px] uppercase tracking-wider text-text-muted w-[110px] shrink-0">
+      <span className="text-[11px] uppercase tracking-wider text-text-muted w-[148px] shrink-0 whitespace-nowrap">
         {label}
       </span>
       <span className="text-sm text-text-primary flex-1 min-w-0 truncate">
@@ -69,7 +74,9 @@ export default function WhatWorked({
       return null
     }
     const formatted = items.map((item) => formatWhatWorkedFinding(cat.key, item))
-    return { ...cat, finding: formatted[0], allItems: formatted }
+    const cleaned =
+      cat.key === 'activeTools' ? formatted.map((f) => stripSkillPrefix(f)) : formatted
+    return { ...cat, finding: cleaned[0], allItems: cleaned }
   }).filter(Boolean)
 
   // Add Best Model row from modelPerformance data
@@ -127,12 +134,15 @@ export default function WhatWorked({
 
   return (
     <>
-      <div className="w-full h-full flex flex-col justify-center min-h-0">
+      <div className="w-full h-full flex flex-col min-h-0 pt-1">
         {rows.map((row) => (
           row.empty ? (
-            <div key={row.key} className="flex items-center gap-3 py-2.5 border-b border-surface-800/60 last:border-b-0">
+            <div
+              key={row.key}
+              className="flex flex-1 min-h-0 items-center gap-2 py-1 border-b border-surface-800/60 last:border-b-0"
+            >
               <row.icon size={14} className="text-text-muted/50 shrink-0" />
-              <span className="text-[11px] uppercase tracking-wider text-text-muted w-[110px] shrink-0">
+              <span className="text-[11px] uppercase tracking-wider text-text-muted w-[148px] shrink-0 whitespace-nowrap">
                 {row.label}
               </span>
               <span className="text-sm text-text-muted/50 italic flex-1 min-w-0">

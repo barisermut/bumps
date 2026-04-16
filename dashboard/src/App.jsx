@@ -15,13 +15,6 @@ import {
 
 const YourBumps = lazy(() => import('./components/YourBumps'))
 
-function heroSubline(bumps) {
-  if (!bumps || bumps.length === 0) return null
-  const top = bumps[0]
-  const total = Math.round(top.count / (top.percentage / 100))
-  return `Found in ${top.count} of your ${total} sessions.`
-}
-
 export default function App() {
   const [projects, setProjects] = useState([])
   const [selectedProject, setSelectedProject] = useState('')
@@ -70,10 +63,11 @@ export default function App() {
 
   const loading = insights === null
   const scopeEmpty = insights ? noSessionsInRange(insights) : false
+  const totalSessions = insights?.meta?.filteredConversationCount ?? 0
   const subline =
-    insights?.meta?.filteredConversationCount > 0
-      ? `Found in ${insights?.bumps?.[0]?.count || 0} of your ${insights.meta.filteredConversationCount} sessions.`
-      : heroSubline(insights?.bumps)
+    totalSessions > 0
+      ? `Across your ${totalSessions} sessions analyzed.`
+      : null
 
   function heroBody() {
     if (loading) {
@@ -129,7 +123,7 @@ export default function App() {
 
         {/* Row 2 — 2-column grid */}
         <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
-          <WidgetShell title="Your bumps" icon={BarChart2} subtitle="% of sessions where this topic came up" verdict="Topics in red are where you lose the most time. Focus here first." span="min-h-0" flush>
+          <WidgetShell title="Your bumps" icon={BarChart2} subtitle="Topics ranked by effort — frequency, messages, and session length" verdict="Red topics took the most back-and-forth to get right." span="min-h-0" flush>
             <Suspense
               fallback={
                 <WidgetEmptyState

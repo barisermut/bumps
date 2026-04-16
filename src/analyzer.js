@@ -1,24 +1,24 @@
 const CATEGORY_MAP = [
-  { label: "Auth Struggles", keywords: ["auth", "login", "signup", "register", "session", "token", "jwt", "oauth", "password", "credential", "logout"] },
-  { label: "Database Headaches", keywords: ["database", "db", "sql", "query", "schema", "migration", "postgres", "sqlite", "mongo", "prisma", "drizzle", "supabase", "table", "row", "column"] },
-  { label: "Chasing Design Issues", keywords: ["css", "style", "styling", "layout", "responsive", "flexbox", "grid", "padding", "margin", "color", "font", "tailwind", "ui", "theme", "dark mode"] },
-  { label: "Building APIs", keywords: ["api", "endpoint", "rest", "graphql", "fetch", "cors", "middleware", "webhook", "payload", "request", "response"] },
-  { label: "Deployment Pain", keywords: ["deploy", "deployment", "docker", "ci", "cd", "pipeline", "vercel", "netlify", "aws", "hosting", "dockerfile", "kubernetes"] },
-  { label: "Testing Gaps", keywords: ["test", "testing", "jest", "vitest", "spec", "assert", "mock", "coverage", "cypress", "playwright"] },
-  { label: "State Management Chaos", keywords: ["state", "redux", "zustand", "context", "store", "reducer", "atom", "signal", "reactive", "useState", "useReducer"] },
-  { label: "Fighting Errors", keywords: ["error", "exception", "catch", "throw", "debug", "stack", "trace", "crash", "bug", "broken"] },
-  { label: "Performance Tuning", keywords: ["performance", "slow", "optimize", "cache", "lazy", "bundle", "chunk", "speed", "memory", "leak", "profiling"] },
-  { label: "Refactoring Loops", keywords: ["refactor", "cleanup", "rename", "extract", "reorganize", "restructure", "simplify", "deduplicate"] },
-  { label: "Wrestling with Config", keywords: ["config", "env", "environment", "setup", "install", "dependency", "package", "version", "compatibility", "dotenv"] },
-  { label: "Routing Tangles", keywords: ["route", "routing", "navigation", "redirect", "link", "page", "path", "url", "param", "router"] },
-  { label: "Form and Validation Fixes", keywords: ["form", "input", "validation", "submit", "field", "checkbox", "select", "textarea", "validator"] },
-  { label: "File Wrangling", keywords: ["file", "upload", "download", "stream", "directory", "fs", "readfile", "writefile", "glob"] },
-  { label: "TypeScript Type Battles", keywords: ["type", "interface", "generic", "typescript", "typed", "enum", "union", "zod", "typeerror"] },
-  { label: "Animation Tinkering", keywords: ["animation", "animate", "transition", "motion", "framer", "keyframe", "opacity", "transform"] },
-  { label: "Search and Filter Work", keywords: ["search", "filter", "sort", "pagination", "query", "index", "autocomplete", "fuzzy"] },
-  { label: "Notification Plumbing", keywords: ["notification", "toast", "alert", "email", "push", "webhook", "subscribe"] },
-  { label: "Data Viz Work", keywords: ["chart", "graph", "visualization", "d3", "plot", "dashboard", "metric", "recharts"] },
-  { label: "Writing Docs", keywords: ["doc", "documentation", "readme", "comment", "jsdoc", "typing", "swagger", "openapi"] },
+  { label: "Stuck on auth again", keywords: ["auth", "login", "signup", "register", "session", "token", "jwt", "oauth", "password", "credential", "logout"] },
+  { label: "Down the database rabbit hole", keywords: ["database", "db", "sql", "query", "schema", "migration", "postgres", "sqlite", "mongo", "prisma", "drizzle", "supabase", "table", "row", "column"] },
+  { label: "Chasing design details", keywords: ["css", "style", "styling", "layout", "responsive", "flexbox", "grid", "padding", "margin", "color", "font", "tailwind", "ui", "theme", "dark mode"] },
+  { label: "Wiring up APIs", keywords: ["api", "endpoint", "rest", "graphql", "fetch", "cors", "middleware", "webhook", "payload", "request", "response"] },
+  { label: "Wrestling with deploys", keywords: ["deploy", "deployment", "docker", "ci", "cd", "pipeline", "vercel", "netlify", "aws", "hosting", "dockerfile", "kubernetes"] },
+  { label: "Filling in tests", keywords: ["test", "testing", "jest", "vitest", "spec", "assert", "mock", "coverage", "cypress", "playwright"] },
+  { label: "Tangled in state management", keywords: ["state", "redux", "zustand", "context", "store", "reducer", "atom", "signal", "reactive", "useState", "useReducer"] },
+  { label: "Chasing down errors", keywords: ["error", "exception", "catch", "throw", "debug", "stack", "trace", "crash", "bug", "broken"] },
+  { label: "Tuning for performance", keywords: ["performance", "slow", "optimize", "cache", "lazy", "bundle", "chunk", "speed", "memory", "leak", "profiling"] },
+  { label: "Caught in a refactor loop", keywords: ["refactor", "cleanup", "rename", "extract", "reorganize", "restructure", "simplify", "deduplicate"] },
+  { label: "Tangled in config", keywords: ["config", "env", "environment", "setup", "install", "dependency", "package", "version", "compatibility", "dotenv"] },
+  { label: "Getting lost in routing", keywords: ["route", "routing", "navigation", "redirect", "link", "page", "path", "url", "param", "router"] },
+  { label: "Fixing forms and validation", keywords: ["form", "input", "validation", "submit", "field", "checkbox", "select", "textarea", "validator"] },
+  { label: "Wrangling files", keywords: ["file", "upload", "download", "stream", "directory", "fs", "readfile", "writefile", "glob"] },
+  { label: "Battling TypeScript types", keywords: ["type", "interface", "generic", "typescript", "typed", "enum", "union", "zod", "typeerror"] },
+  { label: "Tinkering with animations", keywords: ["animation", "animate", "transition", "motion", "framer", "keyframe", "opacity", "transform"] },
+  { label: "Building search and filters", keywords: ["search", "filter", "sort", "pagination", "query", "index", "autocomplete", "fuzzy"] },
+  { label: "Plumbing notifications", keywords: ["notification", "toast", "alert", "email", "push", "webhook", "subscribe"] },
+  { label: "Building data visualizations", keywords: ["chart", "graph", "visualization", "d3", "plot", "dashboard", "metric", "recharts"] },
+  { label: "Writing documentation", keywords: ["doc", "documentation", "readme", "comment", "jsdoc", "typing", "swagger", "openapi"] },
 ];
 
 // Build a reverse lookup: keyword -> array of category labels
@@ -128,34 +128,138 @@ function getUserText(conversation) {
     .join(" ");
 }
 
+function computeSessionSpanMinutes(c) {
+  if (!c.createdAt || !c.lastUpdatedAt) return null;
+  const ms = new Date(c.lastUpdatedAt) - new Date(c.createdAt);
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  return Math.min(ms / 60000, 480);
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
+/**
+ * Effort score: min–max normalized blend of prevalence, avg user messages,
+ * avg session span, avg lines changed. Degenerate signals are dropped and
+ * weights renormalized; if all degenerate, fall back to prevalence-only.
+ */
+function attachEffortScores(rows) {
+  const fields = [
+    { key: "count", w: 0.4 },
+    { key: "avgUserMessages", w: 0.3 },
+    { key: "avgSessionSpanMinutes", w: 0.2 },
+    { key: "avgLinesChanged", w: 0.1 },
+  ];
+
+  const active = [];
+  for (const { key, w } of fields) {
+    const vals = rows.map((r) => r[key]);
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    if (max !== min) active.push({ key, w, min, max });
+  }
+
+  if (active.length === 0) {
+    const counts = rows.map((r) => r.count);
+    const min = Math.min(...counts);
+    const max = Math.max(...counts);
+    if (max !== min) {
+      for (const row of rows) {
+        row.effortScore = Math.round(((row.count - min) / (max - min)) * 1000) / 1000;
+      }
+      return rows;
+    }
+    for (const row of rows) {
+      row.effortScore = 0;
+    }
+    return rows;
+  }
+
+  const wSum = active.reduce((s, f) => s + f.w, 0);
+  for (const row of rows) {
+    let score = 0;
+    for (const { key, w, min, max } of active) {
+      const norm = (row[key] - min) / (max - min);
+      score += (w / wSum) * norm;
+    }
+    row.effortScore = Math.round(score * 1000) / 1000;
+  }
+  return rows;
+}
+
 // --- Section Computers ---
 
 function computeBumps(conversations) {
-  const hits = new Map();
+  const acc = new Map();
+  const total = conversations.length;
 
   for (const c of conversations) {
     const categories = matchCategories(getUserText(c));
+    const userMessages = Number(c.userMessageCount) || 0;
+    const messageCount =
+      Number(c.messageCount) || (c.messages?.length ?? 0);
+    const spanMin = computeSessionSpanMinutes(c);
+    const linesChanged =
+      (Number(c.linesAdded) || 0) + (Number(c.linesRemoved) || 0);
+
     for (const label of categories) {
-      hits.set(label, (hits.get(label) || 0) + 1);
+      if (!acc.has(label)) {
+        acc.set(label, {
+          count: 0,
+          sumUser: 0,
+          sumMsg: 0,
+          sumSpan: 0,
+          spanN: 0,
+          sumLines: 0,
+        });
+      }
+      const a = acc.get(label);
+      a.count += 1;
+      a.sumUser += userMessages;
+      a.sumMsg += messageCount;
+      if (spanMin != null) {
+        a.sumSpan += spanMin;
+        a.spanN += 1;
+      }
+      a.sumLines += linesChanged;
     }
   }
 
-  const total = conversations.length;
-  const sorted = [...hits.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
+  const rows = [...acc.entries()].map(([topic, a]) => {
+    const count = a.count;
+    const avgUserMessages = count ? round1(a.sumUser / count) : 0;
+    const avgMessages = count ? round1(a.sumMsg / count) : 0;
+    const avgSessionSpanMinutes = a.spanN ? round1(a.sumSpan / a.spanN) : 0;
+    const avgLinesChanged = count ? round1(a.sumLines / count) : 0;
+    const percentage =
+      total > 0 ? Math.round((count / total) * 1000) / 10 : 0;
+    return {
+      topic,
+      count,
+      percentage,
+      avgUserMessages,
+      avgMessages,
+      avgSessionSpanMinutes,
+      avgLinesChanged,
+      effortScore: 0,
+    };
+  });
 
-  return sorted.map(([topic, count]) => ({
-    topic,
-    count,
-    percentage: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
-  }));
+  attachEffortScores(rows);
+  rows.sort((a, b) => {
+    if (b.effortScore !== a.effortScore) return b.effortScore - a.effortScore;
+    if (b.count !== a.count) return b.count - a.count;
+    return a.topic.localeCompare(b.topic);
+  });
+
+  return rows.slice(0, 10);
 }
 
 function computeBiggestBump(bumps) {
   if (bumps.length === 0) return "Not enough data to identify patterns yet.";
   const top = bumps[0];
-  return `You spent ${top.percentage}% of your sessions on ${top.topic}.`;
+  return `${top.topic} — came up in ${top.count} sessions, averaging ${top.avgUserMessages} messages each.`;
 }
 
 function computeScopeDrift(conversations) {

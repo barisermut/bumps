@@ -164,7 +164,7 @@ export default function ScopeDrift({ scopeDrift, scopeEmpty = false, loading = f
                 }}
                 onClick={() => openModal(card)}
               >
-                <div className="grid items-center gap-2" style={{ gridTemplateColumns: '1fr 220px 100px' }}>
+                <div className="grid items-center gap-2" style={{ gridTemplateColumns: 'minmax(0, 1fr) 200px 172px' }}>
                   {/* Left: dot + name */}
                   <div className="flex items-center gap-2 min-w-0">
                     <span
@@ -189,7 +189,7 @@ export default function ScopeDrift({ scopeDrift, scopeEmpty = false, loading = f
                     >
                       {card.pattern}
                     </span>
-                    <div className="text-[10px] text-text-muted/50 leading-tight">
+                    <div className="text-[10px] text-text-muted/50 leading-tight whitespace-nowrap">
                       Peak: {formatDate(card.peak.date)} — {card.peak.count} topics
                     </div>
                   </div>

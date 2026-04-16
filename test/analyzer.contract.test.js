@@ -67,6 +67,15 @@ describe("analyze() contract", () => {
       { timeRange: "all" }
     );
     expect(out.bumps.length).toBeGreaterThanOrEqual(0);
+    if (out.bumps.length > 0) {
+      expect(out.bumps[0]).toMatchObject({
+        avgUserMessages: expect.any(Number),
+        avgMessages: expect.any(Number),
+        avgSessionSpanMinutes: expect.any(Number),
+        avgLinesChanged: expect.any(Number),
+        effortScore: expect.any(Number),
+      });
+    }
     expect(out.modelPerformance).toBeDefined();
     expect(out.meta.filteredConversationCount).toBe(1);
   });
@@ -98,6 +107,12 @@ describe("analyze() contract", () => {
     expect(JSON.stringify(today)).toBe(JSON.stringify(legacy1d));
     expect(all.bumps[0]?.count).toBe(2);
     expect(today.bumps[0]?.count).toBe(1);
+    expect(all.biggestBump).toMatch(
+      /came up in \d+ sessions, averaging [\d.]+ messages each/
+    );
+    expect(today.biggestBump).toMatch(
+      /came up in \d+ sessions, averaging [\d.]+ messages each/
+    );
   });
 
   it("surfaces transcript-derived support patterns in whatWorked.activeTools", () => {
@@ -204,10 +219,60 @@ describe("analyze() contract", () => {
       { timeRange: "all" }
     );
 
-    expect(out.modelPerformance[0]).toMatchObject({
+          expect(out.modelPerformance[0]).toMatchObject({
       model: expect.any(String),
       sessionCount: 2,
       lowConfidence: true,
     });
+  });
+
+  it("ranks bumps by effort score so a single heavy session can beat higher prevalence", () => {
+    const t0 = "2026-01-10T12:00:00.000Z";
+    const tLong = "2026-01-11T20:00:00.000Z";
+    const tShort = "2026-01-10T12:01:00.000Z";
+    const highEffort = {
+      composerId: "high",
+      project: "p",
+      createdAt: t0,
+      lastUpdatedAt: tLong,
+      userMessageCount: 24,
+      messageCount: 40,
+      linesAdded: 800,
+      linesRemoved: 200,
+      messages: [
+        { role: "user", text: "auth login token jwt oauth debugging session" },
+        { role: "assistant", text: "ok", modelId: "gpt-4o" },
+      ],
+      filesReferenced: [],
+      toolsUsed: [],
+      cursorRules: [],
+    };
+    const low = {
+      composerId: "low1",
+      project: "p",
+      createdAt: t0,
+      lastUpdatedAt: tShort,
+      userMessageCount: 2,
+      messageCount: 4,
+      linesAdded: 5,
+      linesRemoved: 2,
+      messages: [
+        { role: "user", text: "database sql migration schema" },
+        { role: "assistant", text: "ok", modelId: "gpt-4o" },
+      ],
+      filesReferenced: [],
+      toolsUsed: [],
+      cursorRules: [],
+    };
+    const data = {
+      conversations: [highEffort, { ...low, composerId: "low2" }, low],
+      parserMeta: { sourceSummary: {}, mergeSummary: {} },
+    };
+    const out = analyze(data, { timeRange: "all" });
+    const auth = out.bumps.find((b) => b.topic === "Stuck on auth again");
+    const db = out.bumps.find((b) => b.topic === "Down the database rabbit hole");
+    expect(auth.count).toBe(1);
+    expect(db.count).toBe(2);
+    expect(out.bumps[0].topic).toBe("Stuck on auth again");
   });
 });
