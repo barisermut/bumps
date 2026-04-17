@@ -35,19 +35,63 @@ function getRiskLevel(timeline) {
   return 'green'
 }
 
-function getPatternLabel(timeline) {
+function getPatternLabel(timeline, sessionsPerDay = {}) {
   const sorted = [...timeline].sort((a, b) => {
     const da = a.date ? new Date(a.date).getTime() : 0
     const db = b.date ? new Date(b.date).getTime() : 0
     return da - db
   })
   if (sorted.length === 0) return 'No data'
-  const firstDate = sorted[0].date ? sorted[0].date.split('T')[0] : 'unknown'
-  const firstDayCount = sorted.filter(
-    (e) => (e.date ? e.date.split('T')[0] : 'unknown') === firstDate
-  ).length
-  if (firstDayCount >= 4) return 'Early burst'
-  if (firstDayCount >= 3) return 'Moderate'
+
+  let sessionDays = Object.keys(sessionsPerDay).sort()
+  if (sessionDays.length === 0) {
+    const fromTimeline = new Set()
+    for (const e of timeline) {
+      if (e.date) fromTimeline.add(e.date.split('T')[0])
+    }
+    sessionDays = [...fromTimeline].sort()
+  }
+  if (sessionDays.length === 0) return 'Gradual'
+
+  const firstDay = sessionDays[0]
+  const lastDay = sessionDays[sessionDays.length - 1]
+  const spanMs =
+    new Date(`${lastDay}T00:00:00`).getTime() - new Date(`${firstDay}T00:00:00`).getTime()
+  const ageDays = Math.max(1, Math.round(spanMs / 86400000) + 1)
+
+  let totalSessions = Object.values(sessionsPerDay).reduce((s, n) => s + n, 0)
+  if (totalSessions === 0) totalSessions = timeline.length
+  const density = totalSessions / ageDays
+
+  const topicsByDay = {}
+  for (const e of timeline) {
+    const key = e.date ? e.date.split('T')[0] : 'unknown'
+    topicsByDay[key] = (topicsByDay[key] || 0) + 1
+  }
+  let peakDate = null
+  let peakTopics = 0
+  for (const date of Object.keys(topicsByDay).sort()) {
+    const c = topicsByDay[date]
+    if (c > peakTopics) {
+      peakTopics = c
+      peakDate = date
+    }
+  }
+
+  let peakPos = 0
+  if (ageDays <= 1) {
+    peakPos = 0
+  } else if (peakDate && peakDate !== 'unknown') {
+    const p = new Date(`${peakDate}T00:00:00`).getTime()
+    const f = new Date(`${firstDay}T00:00:00`).getTime()
+    const l = new Date(`${lastDay}T00:00:00`).getTime()
+    const denom = l - f
+    peakPos = denom > 0 ? (p - f) / denom : 0
+  }
+
+  if (peakPos <= 0.25 && (peakTopics >= 3 || density >= 2)) return 'Early burst'
+  if (peakPos >= 0.66 && ageDays >= 3 && peakTopics >= 2) return 'Late pivot'
+  if (ageDays >= 4 && timeline.length >= 3 && peakTopics <= 2) return 'Steady drift'
   return 'Gradual'
 }
 
@@ -91,14 +135,6 @@ function getStartDate(timeline) {
   return sorted[0].date ? sorted[0].date.split('T')[0] : ''
 }
 
-function getUniqueDays(timeline) {
-  const dates = new Set()
-  for (const entry of timeline) {
-    if (entry.date) dates.add(entry.date.split('T')[0])
-  }
-  return dates.size
-}
-
 export default function ScopeDrift({ scopeDrift, scopeEmpty = false, loading = false }) {
   const [modal, setModal] = useState(null)
 
@@ -125,13 +161,25 @@ export default function ScopeDrift({ scopeDrift, scopeEmpty = false, loading = f
 
   // Prepare and sort cards
   const cards = scopeDrift.map((proj) => {
+    const sessionsPerDay = proj.sessionsPerDay || {}
     const risk = getRiskLevel(proj.timeline)
-    const pattern = getPatternLabel(proj.timeline)
+    const pattern = getPatternLabel(proj.timeline, sessionsPerDay)
     const peak = getPeakDay(proj.timeline)
     const totalTopics = proj.timeline.length
-    const days = getUniqueDays(proj.timeline)
     const startDate = getStartDate(proj.timeline)
-    return { project: proj.project, timeline: proj.timeline, risk, pattern, peak, totalTopics, days, startDate }
+    const totalSessions = Object.values(sessionsPerDay).reduce((s, n) => s + n, 0)
+    const sessionDayCount = Object.keys(sessionsPerDay).length
+    return {
+      project: proj.project,
+      timeline: proj.timeline,
+      risk,
+      pattern,
+      peak,
+      totalTopics,
+      startDate,
+      totalSessions,
+      sessionDayCount,
+    }
   })
 
   const riskOrder = { red: 0, amber: 1, green: 2 }
@@ -178,7 +226,8 @@ export default function ScopeDrift({ scopeDrift, scopeEmpty = false, loading = f
 
                   {/* Middle: summary — fixed width */}
                   <span className="text-[11px] text-text-muted text-center">
-                    {card.totalTopics} new topics · {card.days} topic days · started {formatDate(card.startDate)}
+                    {card.totalSessions} sessions across {card.sessionDayCount} days · {card.totalTopics} new topics ·
+                    started {formatDate(card.startDate)}
                   </span>
 
                   {/* Right: pattern label — fixed width */}

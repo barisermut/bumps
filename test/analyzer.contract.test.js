@@ -98,6 +98,61 @@ describe("analyze() contract", () => {
     expect(out.contextRichness.topContextSignals).toEqual(["manual-skills"]);
     expect(out.changeVolume.totalLinesChanged).toBe(0);
     expect(out.changeVolume.heaviestSession).toBeNull();
+    if (out.scopeDrift.length > 0) {
+      expect(out.scopeDrift[0]).toMatchObject({
+        project: "p",
+        timeline: expect.any(Array),
+        sessionsPerDay: expect.any(Object),
+      });
+      expect(
+        Object.values(out.scopeDrift[0].sessionsPerDay).reduce((s, n) => s + n, 0)
+      ).toBe(1);
+    }
+  });
+
+  it("computeScopeDrift bucketizes sessions per calendar day", () => {
+    const out = analyze(
+      {
+        conversations: [
+          {
+            composerId: "1",
+            project: "p",
+            createdAt: "2026-01-10T12:00:00.000Z",
+            lastUpdatedAt: "2026-01-10T12:00:00.000Z",
+            userMessageCount: 2,
+            messages: [
+              { role: "user", text: "auth login token jwt issue" },
+              { role: "assistant", text: "ok", modelId: "gpt-4o" },
+            ],
+            filesReferenced: [],
+            toolsUsed: [],
+            cursorRules: [],
+          },
+          {
+            composerId: "2",
+            project: "p",
+            createdAt: "2026-01-12T12:00:00.000Z",
+            lastUpdatedAt: "2026-01-12T12:00:00.000Z",
+            userMessageCount: 2,
+            messages: [
+              { role: "user", text: "auth login token jwt again" },
+              { role: "assistant", text: "ok", modelId: "gpt-4o" },
+            ],
+            filesReferenced: [],
+            toolsUsed: [],
+            cursorRules: [],
+          },
+        ],
+        parserMeta: { sourceSummary: {}, mergeSummary: {} },
+      },
+      { timeRange: "all" }
+    );
+    const proj = out.scopeDrift.find((p) => p.project === "p");
+    expect(proj).toBeDefined();
+    expect(proj.sessionsPerDay).toEqual({
+      "2026-01-10": 1,
+      "2026-01-12": 1,
+    });
   });
 
   it("timeRange today and legacy 1d filter the same (calendar day)", () => {

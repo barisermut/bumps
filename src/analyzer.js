@@ -358,6 +358,15 @@ function computeContextRichness(conversations) {
   };
 }
 
+/** Calendar day key (YYYY-MM-DD) from conversation timestamps for scope drift density. */
+function toDayKey(c) {
+  const iso = c.createdAt || c.lastUpdatedAt;
+  if (!iso) return null;
+  const t = new Date(iso);
+  if (!Number.isFinite(t.getTime())) return null;
+  return iso.split("T")[0];
+}
+
 function computeScopeDrift(conversations) {
   const byProject = new Map();
   for (const c of conversations) {
@@ -376,6 +385,14 @@ function computeScopeDrift(conversations) {
       return da - db;
     });
 
+    const sessionsPerDay = {};
+    for (const c of sorted) {
+      const key = toDayKey(c);
+      if (key) {
+        sessionsPerDay[key] = (sessionsPerDay[key] || 0) + 1;
+      }
+    }
+
     const seen = new Set();
     const timeline = [];
 
@@ -393,7 +410,7 @@ function computeScopeDrift(conversations) {
     }
 
     if (timeline.length > 0) {
-      result.push({ project, timeline });
+      result.push({ project, timeline, sessionsPerDay });
     }
   }
 
