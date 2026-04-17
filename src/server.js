@@ -4,6 +4,10 @@ const { performance } = require("node:perf_hooks");
 const { parse } = require("./parser");
 const { analyze } = require("./analyzer");
 const { defaultDashboardPath } = require("./paths");
+const {
+  getMentorInsights,
+  buildFallbackEnvelope,
+} = require("./lib/mentorInsights");
 
 /** Matches dashboard FilterBar + analyzer `filterConversations` (CLI may pass 1d). */
 const ALLOWED_TIME_RANGES = new Set(["all", "today", "1d", "7d", "30d"]);
@@ -35,10 +39,17 @@ function parseInsightsQuery(query) {
 
 /**
  * @param {object} parsedData result of parse()
- * @param {{ dashboardPath?: string }} [options]
+ * @param {{
+ *   dashboardPath?: string;
+ *   mentorEnabled?: boolean;
+ *   preWarmedMentor?: object | null;
+ * }} [options]
  */
 function createApp(parsedData, options = {}) {
   const dashboardPath = options.dashboardPath ?? defaultDashboardPath();
+  const mentorEnabled =
+    options.mentorEnabled ?? process.env.BUMPS_MODE === "mentor";
+  const preWarmedMentor = options.preWarmedMentor ?? null;
   const app = express();
 
   app.use((req, res, next) => {
@@ -86,6 +97,56 @@ function createApp(parsedData, options = {}) {
     }
   });
 
+  app.get("/api/mentor-insights", async (req, res) => {
+    const parsed = parseInsightsQuery(req.query);
+    if (!parsed.ok) {
+      return res.status(400).json(GENERIC_BAD_REQUEST);
+    }
+    try {
+      const mirror = analyze(parsedData, {
+        project: parsed.project,
+        timeRange: parsed.timeRange,
+      });
+      if (!mentorEnabled) {
+        return res.json(
+          buildFallbackEnvelope({
+            filter: parsed,
+            mirror,
+            reason: "mentor_disabled",
+            cacheKey: "none",
+          })
+        );
+      }
+      if (!parsed.project && parsed.timeRange === "all" && preWarmedMentor) {
+        return res.json({
+          ...preWarmedMentor,
+          fromCache: true,
+          durationMs: 0,
+        });
+      }
+      const result = await getMentorInsights({
+        parsedData,
+        mirror,
+        filter: parsed,
+      });
+      res.json(result);
+    } catch (err) {
+      console.error("[bumps] /api/mentor-insights", err);
+      const mirror = analyze(parsedData, {
+        project: parsed.project,
+        timeRange: parsed.timeRange,
+      });
+      res.json(
+        buildFallbackEnvelope({
+          filter: parsed,
+          mirror,
+          reason: "unexpected_error",
+          cacheKey: "none",
+        })
+      );
+    }
+  });
+
   app.use(express.static(dashboardPath));
   return app;
 }
@@ -95,6 +156,8 @@ function createApp(parsedData, options = {}) {
  *   parsedData: object;
  *   port?: number;
  *   dashboardPath?: string;
+ *   mentorEnabled?: boolean;
+ *   preWarmedMentor?: object | null;
  *   onListening?: () => void;
  *   logListenMessage?: boolean;
  *   onListenError?: (err: NodeJS.ErrnoException) => void;
@@ -105,12 +168,18 @@ function startServer(options) {
     parsedData,
     port = 3456,
     dashboardPath = defaultDashboardPath(),
+    mentorEnabled,
+    preWarmedMentor = null,
     onListening,
     logListenMessage = true,
     onListenError,
   } = options;
 
-  const app = createApp(parsedData, { dashboardPath });
+  const app = createApp(parsedData, {
+    dashboardPath,
+    mentorEnabled,
+    preWarmedMentor,
+  });
   // Loopback IPv4 only; we do not bind ::1, so use http://127.0.0.1 if `localhost` resolves to IPv6 first.
   const LISTEN_HOST = "127.0.0.1";
   const server = app.listen(port, LISTEN_HOST, () => {

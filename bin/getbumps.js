@@ -272,7 +272,65 @@ async function main() {
       `  🗂️   Found ${nProjects} project${nProjects === 1 ? "" : "s"}, ${nConversations} conversation${nConversations === 1 ? "" : "s"}`
     )
   );
-  console.log(style.out("  🧠  Analyzing patterns…"));
+  let preWarmedMentor = null;
+  if (mode === "mentor") {
+    const { spinner } = await import("@clack/prompts");
+    const { getMentorInsights, previewCacheStatus } = require("../src/lib/mentorInsights");
+    const { analyze } = require("../src/analyzer");
+
+    const mirror = analyze(parsedData, { project: null, timeRange: "all" });
+    const cacheStatus = previewCacheStatus(parsedData, {
+      project: null,
+      timeRange: "all",
+    });
+
+    if (cacheStatus.cold) {
+      console.log(style.out("  First Mentor analysis — this takes about a minute."));
+      console.log(
+        style.muted("  Subsequent runs are instant until your data changes.")
+      );
+      console.log("");
+    }
+
+    const s = spinner();
+    const started = Date.now();
+    const tick = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - started) / 1000);
+      const mm = Math.floor(elapsed / 60);
+      const ss = String(elapsed % 60).padStart(2, "0");
+      s.message(`Analyzing your sessions... ${mm}:${ss} elapsed`);
+    }, 1000);
+
+    s.start("Analyzing your sessions... 0:00 elapsed");
+
+    try {
+      preWarmedMentor = await getMentorInsights({
+        parsedData,
+        mirror,
+        filter: { project: null, timeRange: "all" },
+      });
+      clearInterval(tick);
+      if (preWarmedMentor.fallback.used) {
+        s.stop(
+          `Mentor fell back to Mirror (${preWarmedMentor.fallback.reason}).`
+        );
+      } else {
+        s.stop(
+          preWarmedMentor.fromCache
+            ? "Loaded cached Mentor insights."
+            : "Done."
+        );
+      }
+    } catch (err) {
+      clearInterval(tick);
+      console.error(err);
+      s.stop("Mentor failed — continuing with Mirror.");
+      preWarmedMentor = null;
+    }
+    console.log("");
+  } else {
+    console.log(style.out("  🧠  Analyzing patterns…"));
+  }
 
   const dashboardPath = defaultDashboardPath();
 
@@ -280,6 +338,7 @@ async function main() {
     parsedData,
     port,
     dashboardPath,
+    preWarmedMentor,
     logListenMessage: false,
     onListenError(err) {
       if (err.code === "EADDRINUSE") {
