@@ -1,4 +1,4 @@
-import { Activity, FolderOpen, Zap, Clock } from 'lucide-react'
+import { Activity, FolderOpen, Zap, FileDiff } from 'lucide-react'
 import WidgetEmptyState from './WidgetEmptyState'
 import { noSessionsInRange, FILTER_EMPTY_HINT } from '../lib/insightsEmpty'
 
@@ -38,7 +38,6 @@ export default function StatCards({ insights }) {
     )
   }
 
-  const topBump = insights.bumps?.[0]
   const totalSessions = insights.meta?.filteredConversationCount ?? 0
 
   // Most active project from scopeDrift (project with most timeline entries)
@@ -70,18 +69,24 @@ export default function StatCards({ insights }) {
     }
   }
 
-  // Where effort piled up (formerly biggest time sink)
-  const timeSinkValue = topBump ? topBump.topic : '—'
-  const timeSinkLabel = topBump
-    ? `avg ${topBump.avgUserMessages} messages across ${topBump.count} sessions`
-    : ''
+  // Change volume — total lines touched and where the heaviest session landed
+  const cv = insights.changeVolume
+  const hasChangeVolume = cv && cv.totalLinesChanged > 0
+  const changeVolumeValue = hasChangeVolume
+    ? `${cv.totalLinesChanged.toLocaleString()} lines`
+    : '—'
+  const changeVolumeLabel = hasChangeVolume
+    ? (cv.heaviestSession
+        ? `across ${cv.sessionsWithChanges} sessions · heaviest in ${cv.heaviestSession.project}`
+        : `across ${cv.sessionsWithChanges} sessions`)
+    : 'Lines changed this range'
 
   return (
     <div className="grid grid-cols-4 gap-3 shrink-0">
       <Card icon={Activity} value={totalSessions} label="Total sessions analyzed" />
       <Card icon={FolderOpen} value={mostActiveProject} label={mostActiveCount ? `${mostActiveCount} sessions` : 'Most active project'} />
       <Card icon={Zap} value={fastestStyle} label={fastestAvg || 'Fastest prompt style'} />
-      <Card icon={Clock} value={timeSinkValue} label={timeSinkLabel || 'Where effort piled up'} />
+      <Card icon={FileDiff} value={changeVolumeValue} label={changeVolumeLabel} />
     </div>
   )
 }

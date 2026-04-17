@@ -20,6 +20,19 @@ describe("analyze() contract", () => {
       mcpServers: expect.any(Array),
     });
     expect(Array.isArray(out.modelPerformance)).toBe(true);
+    expect(out.changeVolume).toMatchObject({
+      totalLinesChanged: 0,
+      avgLinesPerSession: 0,
+      sessionsWithChanges: 0,
+      heaviestSession: null,
+    });
+    expect(out.contextRichness).toMatchObject({
+      sessionsWithSkills: 0,
+      sessionsWithSubagents: 0,
+      sessionsWithFileContext: 0,
+      topSkills: [],
+      topContextSignals: [],
+    });
     expect(out.meta).toMatchObject({
       totalConversationCount: expect.any(Number),
       filteredConversationCount: expect.any(Number),
@@ -78,6 +91,13 @@ describe("analyze() contract", () => {
     }
     expect(out.modelPerformance).toBeDefined();
     expect(out.meta.filteredConversationCount).toBe(1);
+    expect(out.contextRichness.sessionsWithSkills).toBe(1);
+    expect(out.contextRichness.sessionsWithSubagents).toBe(1);
+    expect(out.contextRichness.sessionsWithFileContext).toBe(1);
+    expect(out.contextRichness.topSkills).toEqual(["brainstorming"]);
+    expect(out.contextRichness.topContextSignals).toEqual(["manual-skills"]);
+    expect(out.changeVolume.totalLinesChanged).toBe(0);
+    expect(out.changeVolume.heaviestSession).toBeNull();
   });
 
   it("timeRange today and legacy 1d filter the same (calendar day)", () => {
@@ -274,5 +294,48 @@ describe("analyze() contract", () => {
     expect(auth.count).toBe(1);
     expect(db.count).toBe(2);
     expect(out.bumps[0].topic).toBe("Stuck on auth again");
+  });
+
+  it("computes change volume and heaviest session", () => {
+    const out = analyze(
+      {
+        conversations: [
+          {
+            composerId: "1",
+            project: "alpha",
+            createdAt: new Date().toISOString(),
+            lastUpdatedAt: new Date().toISOString(),
+            userMessageCount: 1,
+            linesAdded: 100,
+            linesRemoved: 20,
+            messages: [{ role: "user", text: "x" }],
+            filesReferenced: [],
+            toolsUsed: [],
+            cursorRules: [],
+          },
+          {
+            composerId: "2",
+            project: "beta",
+            createdAt: new Date().toISOString(),
+            lastUpdatedAt: new Date().toISOString(),
+            userMessageCount: 1,
+            linesAdded: 5,
+            linesRemoved: 0,
+            messages: [{ role: "user", text: "y" }],
+            filesReferenced: [],
+            toolsUsed: [],
+            cursorRules: [],
+          },
+        ],
+        parserMeta: { sourceSummary: {}, mergeSummary: {} },
+      },
+      { timeRange: "all" }
+    );
+    expect(out.changeVolume.totalLinesChanged).toBe(125);
+    expect(out.changeVolume.sessionsWithChanges).toBe(2);
+    expect(out.changeVolume.heaviestSession).toEqual({
+      project: "alpha",
+      linesChanged: 120,
+    });
   });
 });

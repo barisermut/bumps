@@ -165,6 +165,7 @@ export default function App() {
             <WhatWorked
               whatWorked={insights?.whatWorked}
               modelPerformance={insights?.modelPerformance}
+              contextRichness={insights?.contextRichness}
               scopeEmpty={scopeEmpty}
               loading={loading}
             />

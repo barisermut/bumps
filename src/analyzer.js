@@ -262,6 +262,102 @@ function computeBiggestBump(bumps) {
   return `${top.topic} — came up in ${top.count} sessions, averaging ${top.avgUserMessages} messages each.`;
 }
 
+function computeChangeVolume(conversations) {
+  if (!conversations.length) {
+    return {
+      totalLinesChanged: 0,
+      avgLinesPerSession: 0,
+      sessionsWithChanges: 0,
+      heaviestSession: null,
+    };
+  }
+
+  let totalLinesChanged = 0;
+  let sessionsWithChanges = 0;
+  let heaviestSession = null;
+
+  for (const c of conversations) {
+    const linesChanged =
+      (Number(c.linesAdded) || 0) + (Number(c.linesRemoved) || 0);
+    totalLinesChanged += linesChanged;
+    if (linesChanged > 0) {
+      sessionsWithChanges += 1;
+      if (
+        !heaviestSession ||
+        linesChanged > heaviestSession.linesChanged
+      ) {
+        heaviestSession = {
+          project: c.project || "Unknown",
+          linesChanged,
+        };
+      }
+    }
+  }
+
+  const avgLinesPerSession = round1(totalLinesChanged / conversations.length);
+
+  return {
+    totalLinesChanged,
+    avgLinesPerSession,
+    sessionsWithChanges,
+    heaviestSession: totalLinesChanged === 0 ? null : heaviestSession,
+  };
+}
+
+function topTokensBySessionPrevalence(counts, limit = 5) {
+  return [...counts.entries()]
+    .sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      return a[0].localeCompare(b[0]);
+    })
+    .slice(0, limit)
+    .map(([token]) => token);
+}
+
+function computeContextRichness(conversations) {
+  if (!conversations.length) {
+    return {
+      sessionsWithSkills: 0,
+      sessionsWithSubagents: 0,
+      sessionsWithFileContext: 0,
+      topSkills: [],
+      topContextSignals: [],
+    };
+  }
+
+  let sessionsWithSkills = 0;
+  let sessionsWithSubagents = 0;
+  let sessionsWithFileContext = 0;
+  const skillCounts = new Map();
+  const signalCounts = new Map();
+
+  for (const c of conversations) {
+    const skills = c.skillsReferenced || [];
+    const subagents = c.subagentsReferenced || [];
+    const files = c.filesReferenced || [];
+    const signals = c.sessionContextSignals || [];
+
+    if (skills.length) sessionsWithSkills += 1;
+    if (subagents.length) sessionsWithSubagents += 1;
+    if (files.length) sessionsWithFileContext += 1;
+
+    for (const s of skills) {
+      skillCounts.set(s, (skillCounts.get(s) || 0) + 1);
+    }
+    for (const s of signals) {
+      signalCounts.set(s, (signalCounts.get(s) || 0) + 1);
+    }
+  }
+
+  return {
+    sessionsWithSkills,
+    sessionsWithSubagents,
+    sessionsWithFileContext,
+    topSkills: topTokensBySessionPrevalence(skillCounts),
+    topContextSignals: topTokensBySessionPrevalence(signalCounts),
+  };
+}
+
 function computeScopeDrift(conversations) {
   const byProject = new Map();
   for (const c of conversations) {
@@ -691,6 +787,19 @@ function emptyInsights() {
       mcpServers: [],
     },
     modelPerformance: [],
+    changeVolume: {
+      totalLinesChanged: 0,
+      avgLinesPerSession: 0,
+      sessionsWithChanges: 0,
+      heaviestSession: null,
+    },
+    contextRichness: {
+      sessionsWithSkills: 0,
+      sessionsWithSubagents: 0,
+      sessionsWithFileContext: 0,
+      topSkills: [],
+      topContextSignals: [],
+    },
     meta: {
       totalConversationCount: 0,
       filteredConversationCount: 0,
@@ -734,6 +843,8 @@ function analyze(parsedData, options = {}) {
     const promptHabits = computePromptHabits(conversations);
     const whatWorked = computeWhatWorked(conversations);
     const modelPerformance = computeModelPerformance(conversations);
+    const changeVolume = computeChangeVolume(conversations);
+    const contextRichness = computeContextRichness(conversations);
     const meta = computeInsightsMeta(parsedData, conversations);
 
     return {
@@ -743,6 +854,8 @@ function analyze(parsedData, options = {}) {
       promptHabits,
       whatWorked,
       modelPerformance,
+      changeVolume,
+      contextRichness,
       meta,
     };
   } catch (err) {

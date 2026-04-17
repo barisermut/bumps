@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Zap, FolderOpen, Plug, Cpu, Wrench } from 'lucide-react'
+import { Zap, FolderOpen, Plug, Cpu, Wrench, Layers } from 'lucide-react'
 import Modal from './Modal'
 import WidgetEmptyState from './WidgetEmptyState'
 import { FILTER_EMPTY_HINT } from '../lib/insightsEmpty'
@@ -42,6 +42,7 @@ function InsightRow({ icon: Icon, label, finding, onDetails }) {
 export default function WhatWorked({
   whatWorked,
   modelPerformance,
+  contextRichness,
   scopeEmpty = false,
   loading = false,
 }) {
@@ -102,6 +103,49 @@ export default function WhatWorked({
       key: 'bestModel',
       label: 'Best Model',
       icon: Cpu,
+      finding: 'Not enough data yet',
+      empty: true,
+    })
+  }
+
+  if (
+    contextRichness &&
+    (contextRichness.sessionsWithSkills > 0 ||
+      contextRichness.sessionsWithSubagents > 0 ||
+      contextRichness.sessionsWithFileContext > 0)
+  ) {
+    const parts = []
+    if (contextRichness.sessionsWithFileContext > 0) {
+      parts.push(`${contextRichness.sessionsWithFileContext} sessions pulled file context`)
+    }
+    if (contextRichness.sessionsWithSkills > 0) {
+      parts.push(`${contextRichness.sessionsWithSkills} leaned on skills`)
+    }
+    if (contextRichness.sessionsWithSubagents > 0) {
+      parts.push(`${contextRichness.sessionsWithSubagents} delegated to subagents`)
+    }
+    const finding = parts.join(' · ')
+    const allItems = [finding]
+    if (contextRichness.topSkills.length > 0) {
+      allItems.push(`Top skills: ${contextRichness.topSkills.join(', ')}`)
+    }
+    if (contextRichness.topContextSignals.length > 0) {
+      allItems.push(
+        `Top context signals: ${contextRichness.topContextSignals.map((s) => s.replace(/-/g, ' ')).join(', ')}`
+      )
+    }
+    rows.push({
+      key: 'howYouWork',
+      label: 'How You Work',
+      icon: Layers,
+      finding,
+      allItems,
+    })
+  } else {
+    rows.push({
+      key: 'howYouWork',
+      label: 'How You Work',
+      icon: Layers,
       finding: 'Not enough data yet',
       empty: true,
     })
