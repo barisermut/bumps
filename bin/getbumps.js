@@ -8,6 +8,8 @@ const { spawn } = require("child_process");
 const { defaultDashboardPath } = require("../src/paths");
 const { parse } = require("../src/parser");
 const { startServer } = require("../src/server");
+const { getMentorState } = require("../src/lib/mentorState");
+const { installAgent, loginAgent } = require("../src/lib/mentorSetup");
 
 /** https://no-color.org/ — NO_COLOR disables; FORCE_COLOR=0 disables; FORCE_COLOR=1 forces when not a TTY */
 const noColor = process.env.NO_COLOR != null && process.env.NO_COLOR !== "";
@@ -68,6 +70,116 @@ function parsePort(argv) {
   return n;
 }
 
+/**
+ * @param {string[]} argv
+ * @returns {"mirror" | "mentor" | null}
+ */
+function parseModeFlag(argv) {
+  const flag = argv.find((a) => a.startsWith("--mode="));
+  if (!flag) return null;
+  const raw = String(flag.split("=")[1] ?? "")
+    .trim()
+    .toLowerCase();
+  if (raw === "mirror" || raw === "mentor") return raw;
+  console.error(
+    style.err(
+      "getbumps: invalid --mode (use mirror or mentor, e.g. --mode=mirror)"
+    )
+  );
+  process.exit(1);
+}
+
+function fallbackToMirror() {
+  console.log("  Switching to Mirror mode instead.");
+  console.log(
+    "  Run getbumps anytime — select Mentor again once you're ready."
+  );
+  return "mirror";
+}
+
+/** @param {{ ready: boolean }} mentorStateHint */
+async function promptModeInteractive(mentorStateHint) {
+  const { select, isCancel } = await import("@clack/prompts");
+
+  console.log("Welcome to Bumps.");
+  console.log("");
+  console.log("How would you like to analyze your building patterns?");
+  console.log("");
+
+  const choice = await select({
+    message: "",
+    options: [
+      {
+        value: "mirror",
+        label: "Mirror",
+        hint: "Fast, local, no setup needed. Your data never leaves.",
+      },
+      {
+        value: "mentor",
+        label: mentorStateHint.ready ? "Mentor" : "Mentor (setup required)",
+        hint: "Deeper analysis using your own Cursor Agent. Your data never leaves.",
+      },
+    ],
+    initialValue: "mirror",
+  });
+
+  if (isCancel(choice)) process.exit(0);
+  return choice;
+}
+
+async function runMentorSetupFlow() {
+  const { confirm, isCancel } = await import("@clack/prompts");
+
+  console.log("Mentor selected.");
+  console.log("");
+  console.log(
+    "  Mentor requires Cursor Agent CLI to analyze your sessions on your device."
+  );
+  console.log(
+    "  Your data never leaves your machine — analysis runs using your own Cursor account."
+  );
+
+  let state = getMentorState();
+
+  if (!state.installed) {
+    console.log("");
+    console.log("  Step 1: Install Cursor Agent CLI");
+    const ok = await confirm({
+      message: "  Would you like to install it now?",
+      initialValue: true,
+    });
+    if (isCancel(ok)) process.exit(0);
+    if (!ok) return fallbackToMirror();
+    console.log("  Installing...");
+    const installOk = await installAgent();
+    if (!installOk) return fallbackToMirror();
+    console.log("  \u2713 Cursor Agent CLI installed.");
+    state = getMentorState();
+    if (!state.installed) return fallbackToMirror();
+  }
+
+  if (!state.loggedIn) {
+    console.log("");
+    console.log("  Step 2: Log in with your Cursor account.");
+    console.log(
+      "  This opens your browser — same account you already use in Cursor."
+    );
+    const ok2 = await confirm({
+      message: "  Would you like to continue?",
+      initialValue: true,
+    });
+    if (isCancel(ok2)) process.exit(0);
+    if (!ok2) return fallbackToMirror();
+    const loginOk = await loginAgent();
+    if (!loginOk) return fallbackToMirror();
+    state = getMentorState();
+    if (!state.loggedIn) return fallbackToMirror();
+    console.log(`  \u2713 Logged in as ${state.email}`);
+  }
+
+  return "mentor";
+}
+
 function dashboardDistReady() {
   const indexHtml = path.join(defaultDashboardPath(), "index.html");
   return fs.existsSync(indexHtml);
@@ -91,15 +203,50 @@ function openBrowser(url) {
   }
 }
 
-function main() {
+async function main() {
   const argv = process.argv.slice(2);
   const port = parsePort(argv);
+  const modeFlag = parseModeFlag(argv);
 
   console.log("");
   printBanner();
   console.log("");
   console.log(style.muted(TAGLINE));
   console.log("");
+
+  const mentorStateHint = getMentorState();
+
+  /** @type {"mirror" | "mentor"} */
+  let mode;
+  if (modeFlag === "mirror") {
+    mode = "mirror";
+  } else if (modeFlag === "mentor") {
+    mode = "mentor";
+  } else if (!process.stdout.isTTY) {
+    console.log(
+      style.muted(
+        "  (non-interactive terminal — defaulting to Mirror. Use --mode=mentor to opt in.)"
+      )
+    );
+    mode = "mirror";
+  } else {
+    mode = await promptModeInteractive(mentorStateHint);
+  }
+
+  if (mode === "mentor") {
+    const stateNow = getMentorState();
+    if (stateNow.ready) {
+      console.log("Mentor selected.");
+      console.log("");
+      console.log("  \u2713 Cursor Agent CLI found.");
+      console.log(`  \u2713 Logged in as ${stateNow.email}`);
+      console.log("");
+    } else {
+      mode = await runMentorSetupFlow();
+    }
+  }
+
+  process.env.BUMPS_MODE = mode;
 
   if (!dashboardDistReady()) {
     console.error(
@@ -179,4 +326,7 @@ function main() {
   process.on("SIGTERM", shutdown);
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

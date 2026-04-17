@@ -1,6 +1,6 @@
 {
   "name": "getbumps",
-  "version": "1.0.2",
+  "version": "1.5.0",
   "description": "Local dashboard for your Cursor chat history — patterns, stalls, and flow. All data stays on your machine. Run: npx getbumps",
   "bin": {
     "getbumps": "bin/getbumps.js"
@@ -39,6 +39,7 @@
   },
   "type": "commonjs",
   "dependencies": {
+    "@clack/prompts": "^1.2.0",
     "better-sqlite3": "^12.8.0",
     "express": "^5.2.1"
   },
