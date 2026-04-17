@@ -1,4 +1,4 @@
-import { Activity, FolderOpen, Zap, Clock, ShieldCheck } from 'lucide-react'
+import { Activity, FolderOpen, Zap, Clock } from 'lucide-react'
 import WidgetEmptyState from './WidgetEmptyState'
 import { noSessionsInRange, FILTER_EMPTY_HINT } from '../lib/insightsEmpty'
 
@@ -75,22 +75,13 @@ export default function StatCards({ insights }) {
   const timeSinkLabel = topBump
     ? `avg ${topBump.avgUserMessages} messages across ${topBump.count} sessions`
     : ''
-  const trustNote = insights.meta?.trustNote
 
   return (
-    <div className="shrink-0">
-      <div className="grid grid-cols-4 gap-3">
-        <Card icon={Activity} value={totalSessions} label="Total sessions analyzed" />
-        <Card icon={FolderOpen} value={mostActiveProject} label={mostActiveCount ? `${mostActiveCount} sessions` : 'Most active project'} />
-        <Card icon={Zap} value={fastestStyle} label={fastestAvg || 'Fastest prompt style'} />
-        <Card icon={Clock} value={timeSinkValue} label={timeSinkLabel || 'Where effort piled up'} />
-      </div>
-      {trustNote && (
-        <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-border-subtle/70 bg-surface-900/60 px-3 py-1.5">
-          <ShieldCheck size={12} className="text-text-muted/70 shrink-0" />
-          <p className="text-[11px] text-text-muted/80 leading-tight min-w-0">{trustNote}</p>
-        </div>
-      )}
+    <div className="grid grid-cols-4 gap-3 shrink-0">
+      <Card icon={Activity} value={totalSessions} label="Total sessions analyzed" />
+      <Card icon={FolderOpen} value={mostActiveProject} label={mostActiveCount ? `${mostActiveCount} sessions` : 'Most active project'} />
+      <Card icon={Zap} value={fastestStyle} label={fastestAvg || 'Fastest prompt style'} />
+      <Card icon={Clock} value={timeSinkValue} label={timeSinkLabel || 'Where effort piled up'} />
     </div>
   )
 }

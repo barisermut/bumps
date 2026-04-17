@@ -4,6 +4,7 @@ import FilterBar from './components/FilterBar'
 import WidgetShell from './components/WidgetShell'
 import WidgetEmptyState from './components/WidgetEmptyState'
 import StatCards from './components/StatCards'
+import TrustBadge from './components/TrustBadge'
 import ScopeDrift from './components/ScopeDrift'
 import PromptHabits from './components/PromptHabits'
 import WhatWorked from './components/WhatWorked'
@@ -120,6 +121,9 @@ export default function App() {
 
         {/* Row 1.5 — Stat cards */}
         <StatCards insights={insights} />
+
+        {/* Row 1.75 — Trust chips */}
+        <TrustBadge meta={insights?.meta} />
 
         {/* Row 2 — 2-column grid */}
         <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
