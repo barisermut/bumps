@@ -75,7 +75,7 @@ export default function PromptHabits({ promptHabits, scopeEmpty = false, loading
   const longFaster = long.avgResolution > 0 && long.avgResolution < short.avgResolution
 
   return (
-    <div className="flex gap-3 w-full h-full items-stretch">
+    <div className="flex flex-col lg:flex-row gap-3 w-full h-full items-stretch">
       <Column
         title="Short prompts"
         desc="Under 200 characters"

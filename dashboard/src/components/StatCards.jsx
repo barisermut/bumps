@@ -17,8 +17,8 @@ function Card({ icon: Icon, value, label }) {
 export default function StatCards({ insights }) {
   if (!insights) {
     return (
-      <div className="grid grid-cols-4 gap-3 shrink-0">
-        <div className="col-span-4 rounded-xl border border-border-subtle bg-surface-900">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
+        <div className="col-span-2 lg:col-span-4 rounded-xl border border-border-subtle bg-surface-900">
           <WidgetEmptyState title="Loading insights…" />
         </div>
       </div>
@@ -27,8 +27,8 @@ export default function StatCards({ insights }) {
 
   if (noSessionsInRange(insights)) {
     return (
-      <div className="grid grid-cols-4 gap-3 shrink-0">
-        <div className="col-span-4 rounded-xl border border-border-subtle bg-surface-900">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
+        <div className="col-span-2 lg:col-span-4 rounded-xl border border-border-subtle bg-surface-900">
           <WidgetEmptyState
             title="No session stats for this range"
             hint={FILTER_EMPTY_HINT}
@@ -82,7 +82,7 @@ export default function StatCards({ insights }) {
     : 'Lines changed this range'
 
   return (
-    <div className="grid grid-cols-4 gap-3 shrink-0">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
       <Card icon={Activity} value={totalSessions} label="Total sessions analyzed" />
       <Card icon={FolderOpen} value={mostActiveProject} label={mostActiveCount ? `${mostActiveCount} sessions` : 'Most active project'} />
       <Card icon={Zap} value={fastestStyle} label={fastestAvg || 'Fastest prompt style'} />

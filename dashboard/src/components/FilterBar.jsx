@@ -7,7 +7,7 @@ const TIME_RANGES = [
 
 export default function FilterBar({ projects, selectedProject, onProjectChange, timeRange, onTimeRangeChange }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+    <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-3 px-4 py-3 border-b border-border shrink-0">
       {/* Left — brand */}
       <div className="flex items-center gap-3">
         <h1 className="font-display text-2xl text-text-primary tracking-tight">

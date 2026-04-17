@@ -212,7 +212,7 @@ export default function ScopeDrift({ scopeDrift, scopeEmpty = false, loading = f
                 }}
                 onClick={() => openModal(card)}
               >
-                <div className="grid items-center gap-2" style={{ gridTemplateColumns: 'minmax(0, 1fr) 200px 172px' }}>
+                <div className="grid items-center gap-1 lg:gap-2 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_200px_172px]">
                   {/* Left: dot + name */}
                   <div className="flex items-center gap-2 min-w-0">
                     <span
@@ -225,13 +225,13 @@ export default function ScopeDrift({ scopeDrift, scopeEmpty = false, loading = f
                   </div>
 
                   {/* Middle: summary — fixed width */}
-                  <span className="text-[11px] text-text-muted text-center">
+                  <span className="text-[11px] text-text-muted text-left lg:text-center">
                     {card.totalSessions} sessions across {card.sessionDayCount} days · {card.totalTopics} new topics ·
                     started {formatDate(card.startDate)}
                   </span>
 
                   {/* Right: pattern label — fixed width */}
-                  <div className="text-right">
+                  <div className="text-left lg:text-right">
                     <span
                       className="text-[12px] font-medium"
                       style={{ color: dotColor }}
