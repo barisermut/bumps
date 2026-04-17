@@ -166,4 +166,22 @@ describe("createApp API", () => {
     });
     expect(res.body.error).toBeUndefined();
   });
+
+  it("/api/mode returns mirror when mentor is not enabled", async () => {
+    const app = createApp(MINIMAL_PARSED, {
+      dashboardPath: STATIC_FIXTURE,
+      mentorEnabled: false,
+    });
+    const res = await request(app).get("/api/mode").expect(200);
+    expect(res.body).toEqual({ mode: "mirror" });
+  });
+
+  it("/api/mode returns mentor when mentorEnabled option is true", async () => {
+    const app = createApp(MINIMAL_PARSED, {
+      dashboardPath: STATIC_FIXTURE,
+      mentorEnabled: true,
+    });
+    const res = await request(app).get("/api/mode").expect(200);
+    expect(res.body).toEqual({ mode: "mentor" });
+  });
 });

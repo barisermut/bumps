@@ -8,31 +8,28 @@ import {
 } from 'recharts'
 import WidgetEmptyState from './WidgetEmptyState'
 import { FILTER_EMPTY_HINT } from '../lib/insightsEmpty'
+import {
+  SEVERITY,
+  CHART_FONT,
+  TEXT_PRIMARY_CHART,
+  TEXT_MUTED_CHART,
+} from '../lib/severityColors'
 
-const BAR_COLOR = 'oklch(0.74 0.14 65)'
+const BAR_COLOR = SEVERITY.medium
 const BAR_COLOR_FADED = 'oklch(0.74 0.14 65 / 0.15)'
 
-// Color signal zones: red (problem), amber (watch), green (healthy)
-const BAR_RED = 'oklch(0.65 0.18 25)'
-const BAR_AMBER = 'oklch(0.74 0.14 65)'
-const BAR_GREEN = 'oklch(0.60 0.10 155)'
-const CHART_FONT =
-  'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-
 function barColor(index, total) {
-  if (index < 3) return BAR_RED
-  if (index >= total - 3 && total > 6) return BAR_GREEN
-  return BAR_AMBER
+  if (index < 3) return SEVERITY.high
+  if (index >= total - 3 && total > 6) return SEVERITY.low
+  return SEVERITY.medium
 }
-const TEXT_PRIMARY = 'oklch(0.93 0.01 75)'
-const TEXT_MUTED = 'oklch(0.48 0.012 55)'
 
 function PercentLabel({ x, y, width, height, value }) {
   return (
     <text
       x={x + width + 8}
       y={y + height / 2}
-      fill={TEXT_PRIMARY}
+      fill={TEXT_PRIMARY_CHART}
       fontSize={12}
       fontFamily={CHART_FONT}
       dominantBaseline="central"
@@ -47,7 +44,7 @@ function TopicTick({ x, y, payload }) {
     <text
       x={x - 4}
       y={y}
-      fill={TEXT_MUTED}
+      fill={TEXT_MUTED_CHART}
       fontSize={12}
       fontFamily={CHART_FONT}
       textAnchor="end"

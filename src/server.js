@@ -80,6 +80,10 @@ function createApp(parsedData, options = {}) {
     }
   });
 
+  app.get("/api/mode", (req, res) => {
+    res.json({ mode: mentorEnabled ? "mentor" : "mirror" });
+  });
+
   app.get("/api/insights", (req, res) => {
     const parsed = parseInsightsQuery(req.query);
     if (!parsed.ok) {

@@ -2,10 +2,11 @@ import { useState } from 'react'
 import Modal from './Modal'
 import WidgetEmptyState from './WidgetEmptyState'
 import { FILTER_EMPTY_HINT } from '../lib/insightsEmpty'
+import { SEVERITY } from '../lib/severityColors'
 
-const COLOR_GREEN = 'oklch(0.60 0.10 155)'
-const COLOR_AMBER = 'oklch(0.74 0.14 65)'
-const COLOR_RED = 'oklch(0.65 0.18 25)'
+const COLOR_GREEN = SEVERITY.low
+const COLOR_AMBER = SEVERITY.medium
+const COLOR_RED = SEVERITY.high
 
 function groupByDate(timeline) {
   const sorted = [...timeline].sort((a, b) => {
