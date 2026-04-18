@@ -3,7 +3,6 @@ const {
   buildMentorPromptBundle,
   estimateTokens,
 } = require("../src/lib/mentorPrompt");
-const { analyze } = require("../src/analyzer");
 
 function baseConversation(i, project, lastUserText) {
   const id = `abc${String(i).padStart(5, "0")}zzzz`;
@@ -15,7 +14,7 @@ function baseConversation(i, project, lastUserText) {
     userMessageCount: 2,
     messageCount: 3,
     messages: [
-      { role: "user", text: "hello auth login please" },
+      { role: "user", text: "hello" },
       { role: "assistant", text: "ok", modelId: "gpt-4o" },
       { role: "user", text: lastUserText },
     ],
@@ -25,129 +24,84 @@ function baseConversation(i, project, lastUserText) {
     skillsReferenced: [],
     subagentsReferenced: [],
     sessionContextSignals: [],
+    linesAdded: 1,
+    linesRemoved: 0,
   };
 }
 
 describe("buildMentorPrompt", () => {
-  it("includes headers, session fields, and no lastUserPrompt in JSON", () => {
+  it("includes session rows with middleSignals and no firstPrompt", () => {
+    const conversations = [];
+    for (let p of ["pa", "pb", "pc"]) {
+      for (let j = 0; j < 3; j++) {
+        conversations.push(baseConversation(conversations.length, p, "wrong"));
+      }
+    }
+    const parsed = {
+      conversations,
+      projects: ["pa", "pb", "pc"],
+      totalConversations: conversations.length,
+      parserMeta: {},
+    };
+    const bundle = buildMentorPromptBundle(parsed);
+    const prompt = bundle.prompt;
+    expect(prompt).toContain("Project arcs");
+    expect(prompt).toContain("Sessions");
+    expect(prompt).not.toContain("Mirror pre-analysis");
+    expect(prompt).not.toContain("firstPrompt");
+
+    const rows = bundle.sessionRows;
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row).toHaveProperty("middleSignals");
+      expect(row).toHaveProperty("correctionCycles");
+      expect(row).toHaveProperty("endedOnCorrection");
+      expect(row).not.toHaveProperty("firstPrompt");
+      expect(row).toHaveProperty("toolsUsed");
+      expect(row).toHaveProperty("skillsUsed");
+    }
+    expect(bundle.stats.totalSessions).toBe(9);
+    const heavyArc = bundle.projectArcs.find((a) => a.project === "pa");
+    expect(heavyArc).toBeTruthy();
+    expect(heavyArc.sessionCount).toBe(3);
+    expect(heavyArc).toHaveProperty("frustrationPercent");
+  });
+
+  it("drops projects with fewer than 3 sessions", () => {
     const conversations = [
-      baseConversation(1, "heavy", "wrong please fix"),
-      baseConversation(2, "heavy", "still not working"),
-      baseConversation(3, "heavy", "thanks done"),
-      baseConversation(4, "light", "hello"),
-      baseConversation(5, "light", "bye"),
+      baseConversation(1, "heavy", "fix"),
+      baseConversation(2, "heavy", "wrong"),
+      baseConversation(3, "heavy", "ok"),
+      baseConversation(4, "tiny", "a"),
+      baseConversation(5, "tiny", "b"),
     ];
     const parsed = {
       conversations,
-      projects: ["heavy", "light"],
+      projects: ["heavy", "tiny"],
       totalConversations: 5,
       parserMeta: {},
     };
-    const mirror = analyze(parsed, { project: null, timeRange: "all" });
-    const prompt = buildMentorPrompt(parsed, mirror, {
-      project: null,
-      timeRange: "all",
-    });
-
-    expect(typeof prompt).toBe("string");
-    expect(prompt).toContain("Mirror pre-analysis");
-    expect(prompt).toContain("Project arcs");
-    expect(prompt).toContain("Sessions:");
-
-    const sessionsPart = prompt.split("Sessions:")[1].split("Return only")[0].trim();
-    const rows = JSON.parse(sessionsPart);
-    expect(rows).toHaveLength(5);
-    for (const row of rows) {
-      expect(row).toHaveProperty("correctionCycles");
-      expect(row).toHaveProperty("endedOnCorrection");
-      expect(row.firstPrompt.length).toBeLessThanOrEqual(250);
-      expect(row).not.toHaveProperty("lastUserPrompt");
-    }
-
-    const bundle = buildMentorPromptBundle(parsed, mirror, {
-      project: null,
-      timeRange: "all",
-    });
-    const heavyArc = bundle.projectArcs.find((a) => a.project === "heavy");
-    expect(heavyArc).toBeTruthy();
-    expect(heavyArc.sessionCount).toBe(3);
-    expect(heavyArc.abandonmentRate).toBeCloseTo(2 / 3, 5);
+    const bundle = buildMentorPromptBundle(parsed);
+    const sessionsPart = bundle.prompt.split("Sessions")[1].split("Return only")[0];
+    const jsonStart = sessionsPart.indexOf("[");
+    const rows = JSON.parse(sessionsPart.slice(jsonStart).trim());
+    expect(rows.every((r) => r.project === "heavy")).toBe(true);
   });
 
-  it("truncates a long first prompt to 250 chars", () => {
-    const long = "x".repeat(5000);
-    const parsed = {
-      conversations: [
-        {
-          composerId: "id000001",
-          project: "p",
-          createdAt: "2024-01-01T00:00:00.000Z",
-          lastUpdatedAt: "2024-01-01T01:00:00.000Z",
-          userMessageCount: 1,
-          messageCount: 1,
-          messages: [{ role: "user", text: long }],
-          filesReferenced: [],
-          toolsUsed: [],
-          cursorRules: [],
-          skillsReferenced: [],
-          subagentsReferenced: [],
-          sessionContextSignals: [],
-        },
-      ],
-      projects: ["p"],
-      totalConversations: 1,
-      parserMeta: {},
-    };
-    const mirror = analyze(parsed, { timeRange: "all" });
-    const prompt = buildMentorPrompt(parsed, mirror, { timeRange: "all" });
-    const sessionsPart = prompt.split("Sessions:")[1].split("Return only")[0].trim();
-    const rows = JSON.parse(sessionsPart);
-    expect(rows[0].firstPrompt.length).toBe(250);
-  });
-
-  it("estimateTokens under 20k for small fixture and under 40k for 200-session fixture", () => {
+  it("estimateTokens under18k hard cap for 200-session fixture", () => {
     const conversations = [];
     for (let i = 0; i < 200; i++) {
-      conversations.push(
-        baseConversation(i, i % 2 === 0 ? "pa" : "pb", "fix this bug")
-      );
+      const proj = ["pa", "pb", "pc"][i % 3];
+      conversations.push(baseConversation(i, proj, "fix this bug"));
     }
     const parsed = {
       conversations,
-      projects: ["pa", "pb"],
+      projects: ["pa", "pb", "pc"],
       totalConversations: 200,
       parserMeta: {},
     };
-    const mirror = analyze(parsed, { timeRange: "all" });
-    const bundleSmall = buildMentorPromptBundle(
-      {
-        conversations: conversations.slice(0, 5),
-        projects: ["pa"],
-        totalConversations: 5,
-        parserMeta: {},
-      },
-      analyze(
-        {
-          conversations: conversations.slice(0, 5),
-          projects: ["pa"],
-          totalConversations: 5,
-          parserMeta: {},
-        },
-        { timeRange: "all" }
-      ),
-      { timeRange: "all" }
-    );
-    expect(estimateTokens(bundleSmall.prompt)).toBeLessThan(20_000);
-
-    const bundleBig = buildMentorPromptBundle(parsed, mirror, {
-      timeRange: "all",
-    });
-    expect(estimateTokens(bundleBig.prompt)).toBeLessThan(40_000);
-    const sessionsPart = bundleBig.prompt
-      .split("Sessions:")[1]
-      .split("Return only")[0]
-      .trim();
-    const rows = JSON.parse(sessionsPart);
-    expect(rows.length).toBeLessThanOrEqual(120);
+    const bundle = buildMentorPromptBundle(parsed);
+    expect(estimateTokens(bundle.prompt)).toBeLessThan(18_000);
+    expect(bundle.sessionRows.length).toBeLessThanOrEqual(100);
   });
 });

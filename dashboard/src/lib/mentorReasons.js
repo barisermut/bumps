@@ -10,8 +10,8 @@ export function mentorFallbackMessage(reason) {
   if (r === 'agent_missing') {
     return 'Cursor Agent CLI isn’t installed. Showing Mirror view. Run `agent --help` to verify installation.'
   }
-  if (r === 'timeout_90s') {
-    return 'Mentor analysis timed out. Showing Mirror view. Try again later or widen your time range.'
+  if (r === 'stream_timeout_30s') {
+    return 'Mentor stopped receiving data. Try running again.'
   }
   if (r === 'invalid_json' || r === 'validation_empty') {
     return 'Mentor analysis couldn’t produce a valid result. Showing Mirror view.'

@@ -1,29 +1,25 @@
 "use strict";
 
 const crypto = require("crypto");
-const {
-  buildMentorPromptBundle,
-  estimateTokens,
-  filterConversations,
-} = require("./mentorPrompt");
+const { buildMentorPromptBundle, estimateTokens } = require("./mentorPrompt");
 const mentorAgent = require("./mentorAgent");
 const { readCache, writeCache, existsCached } = require("./mentorCache");
+const {
+  computeMentorStats,
+  getQualifyingConversations,
+} = require("./mentorStats");
 
 const DEBUG_TOKENS = process.env.BUMPS_DEBUG === "1";
 
-function normalizeFilter(f) {
-  return {
-    project: f.project ?? null,
-    timeRange: f.timeRange ?? "all",
-  };
-}
+/** @type {Map<string, Promise<void>>} */
+const inFlight = new Map();
+/** @type {Map<string, { reason: string, at: number }>} */
+const lastFailure = new Map();
 
-function getSessionFingerprint(parsedData, filter) {
-  const nf = normalizeFilter(filter);
-  const conv = filterConversations(parsedData.conversations || [], {
-    project: nf.project,
-    timeRange: nf.timeRange,
-  });
+const FAILURE_COOLDOWN_MS = 10_000;
+
+function getSessionFingerprint(parsedData) {
+  const conv = getQualifyingConversations(parsedData);
   const lines = conv
     .map((c) =>
       `${String(c.composerId || "")}:${String(c.lastUpdatedAt || c.createdAt || "")}`
@@ -32,160 +28,192 @@ function getSessionFingerprint(parsedData, filter) {
   return crypto.createHash("sha256").update(lines.join("\n")).digest("hex");
 }
 
-function getMentorCacheKey(filter, sessionFingerprint) {
-  const nf = normalizeFilter(filter);
-  return crypto
-    .createHash("sha256")
-    .update(
-      JSON.stringify({
-        project: nf.project,
-        timeRange: nf.timeRange,
-        sessionFingerprint,
-      })
-    )
-    .digest("hex");
+function getMentorCacheKey(sessionFingerprint) {
+  return sessionFingerprint;
 }
 
-function previewCacheStatus(parsedData, filter) {
-  const nf = normalizeFilter(filter);
-  const fp = getSessionFingerprint(parsedData, nf);
-  const key = getMentorCacheKey(nf, fp);
+function previewCacheStatus(parsedData) {
+  const fp = getSessionFingerprint(parsedData);
+  const key = getMentorCacheKey(fp);
   return { cold: !existsCached(key), key };
 }
 
-function buildFallbackEnvelope({ filter, mirror, reason, cacheKey }) {
-  const nf = normalizeFilter(filter);
-  return {
-    mode: "mentor",
-    generatedAt: new Date().toISOString(),
-    cacheKey: cacheKey || "none",
-    fromCache: false,
-    durationMs: 0,
-    filter: { project: nf.project, timeRange: nf.timeRange },
-    mirror,
-    mentor: null,
-    fallback: { used: true, reason },
-  };
-}
+/**
+ * Synchronous snapshot for HTTP handler.
+ * @param {{ conversations?: object[] }} parsedData
+ * @returns {{
+ *   status: "ready" | "computing" | "error";
+ *   cacheKey: string;
+ *   stats: object;
+ *   mentor?: object;
+ *   reason?: string | null;
+ * }}
+ */
+function getMentorStatusSync(parsedData) {
+  const stats = computeMentorStats(parsedData);
+  const cacheKey = getMentorCacheKey(getSessionFingerprint(parsedData));
 
-async function getMentorInsights({ parsedData, mirror, filter }) {
-  const started = Date.now();
-  const nf = normalizeFilter(filter);
-  const sessionFingerprint = getSessionFingerprint(parsedData, nf);
-  const cacheKey = getMentorCacheKey(nf, sessionFingerprint);
-
-  const cached = readCache(cacheKey);
-  if (cached) {
+  const qualifying = getQualifyingConversations(parsedData);
+  if (qualifying.length === 0) {
     return {
-      ...cached,
-      fromCache: true,
-      durationMs: Date.now() - started,
+      status: "error",
+      cacheKey,
+      stats,
+      reason: "no_qualifying_sessions",
     };
   }
 
-  const conv = filterConversations(parsedData.conversations || [], {
-    project: nf.project,
-    timeRange: nf.timeRange,
-  });
-  if (conv.length === 0) {
-    return buildFallbackEnvelope({
-      filter: nf,
-      mirror,
-      reason: "validation_empty",
+  const cached = readCache(cacheKey);
+  if (
+    cached &&
+    cached.status === "ready" &&
+    cached.mentor &&
+    Array.isArray(cached.mentor.insights) &&
+    cached.mentor.insights.length > 0
+  ) {
+    return {
+      status: "ready",
       cacheKey,
-    });
+      stats,
+      mentor: cached.mentor,
+      reason: null,
+    };
   }
 
-  const bundle = buildMentorPromptBundle(parsedData, mirror, nf);
-  const promptEstimate = estimateTokens(bundle.prompt);
-
-  const agentResult = await mentorAgent.runMentorAgent(bundle.prompt);
-  if (!agentResult.ok) {
-    if (DEBUG_TOKENS) {
-      console.log("[bumps] mentor tokens", {
-        promptEstimate,
-        responseEstimate: 0,
-        agentUsage: {},
-        durationMs: agentResult.durationMs,
-        cacheKey,
-      });
-    }
-    return buildFallbackEnvelope({
-      filter: nf,
-      mirror,
-      reason: agentResult.reason,
+  const fail = lastFailure.get(cacheKey);
+  if (fail && Date.now() - fail.at < FAILURE_COOLDOWN_MS) {
+    return {
+      status: "error",
       cacheKey,
-    });
+      stats,
+      reason: fail.reason,
+    };
   }
 
-  const valid = mentorAgent.validateMentorResponse(agentResult.json, {
-    knownSessionIds: bundle.knownSessionIds,
-    knownProjects: bundle.knownProjects,
-  });
-
-  if (!valid.ok) {
-    if (DEBUG_TOKENS) {
-      console.log("[bumps] mentor tokens", {
-        promptEstimate,
-        responseEstimate: agentResult.tokens?.responseEstimate ?? 0,
-        agentUsage: agentResult.tokens?.agentUsage ?? {},
-        durationMs: agentResult.durationMs,
-        cacheKey,
-      });
-    }
-    return buildFallbackEnvelope({
-      filter: nf,
-      mirror,
-      reason: valid.reason || "validation_empty",
+  if (inFlight.has(cacheKey)) {
+    return {
+      status: "computing",
       cacheKey,
-    });
+      stats,
+      reason: null,
+    };
   }
 
-  let fallbackReason = null;
-  if (valid.warnings.length) {
-    fallbackReason = `validation_warnings:${[...new Set(valid.warnings)].join(",")}`;
-  }
-
-  const envelope = {
-    mode: "mentor",
-    generatedAt: new Date().toISOString(),
+  return {
+    status: "computing",
     cacheKey,
-    fromCache: false,
-    durationMs: Date.now() - started,
-    filter: { project: nf.project, timeRange: nf.timeRange },
-    mirror,
-    mentor: valid.value,
-    fallback: { used: false, reason: fallbackReason },
+    stats,
+    reason: null,
   };
+}
 
-  const toCache = {
-    mode: envelope.mode,
-    generatedAt: envelope.generatedAt,
-    cacheKey: envelope.cacheKey,
-    filter: envelope.filter,
-    mirror: envelope.mirror,
-    mentor: envelope.mentor,
-    fallback: envelope.fallback,
-  };
-  writeCache(cacheKey, toCache);
+/**
+ * Fire-and-forget agent run when status is computing and not already running.
+ * @param {{ conversations?: object[] }} parsedData
+ */
+function ensureMentorRunning(parsedData) {
+  const cacheKey = getMentorCacheKey(getSessionFingerprint(parsedData));
+  const qualifying = getQualifyingConversations(parsedData);
+  if (qualifying.length === 0) return;
 
-  if (DEBUG_TOKENS) {
-    console.log("[bumps] mentor tokens", {
-      promptEstimate,
-      responseEstimate: agentResult.tokens?.responseEstimate,
-      agentUsage: agentResult.tokens?.agentUsage,
-      durationMs: agentResult.durationMs,
-      cacheKey,
-    });
+  const cached = readCache(cacheKey);
+  if (
+    cached &&
+    cached.status === "ready" &&
+    cached.mentor &&
+    Array.isArray(cached.mentor.insights) &&
+    cached.mentor.insights.length > 0
+  ) {
+    return;
   }
+  if (inFlight.has(cacheKey)) return;
 
-  return envelope;
+  const prevFail = lastFailure.get(cacheKey);
+  if (prevFail && Date.now() - prevFail.at < FAILURE_COOLDOWN_MS) {
+    return;
+  }
+  lastFailure.delete(cacheKey);
+
+  const job = (async () => {
+    const bundle = buildMentorPromptBundle(parsedData);
+    const promptEstimate = estimateTokens(bundle.prompt);
+
+    const agentResult = await mentorAgent.runMentorAgent(bundle.prompt);
+    if (!agentResult.ok) {
+      if (DEBUG_TOKENS) {
+        console.log("[bumps] mentor tokens", {
+          promptEstimate,
+          responseEstimate: 0,
+          agentUsage: {},
+          durationMs: agentResult.durationMs,
+          cacheKey,
+        });
+      }
+      lastFailure.set(cacheKey, {
+        reason: agentResult.reason || "agent_failed",
+        at: Date.now(),
+      });
+      return;
+    }
+
+    const valid = mentorAgent.validateMentorResponse(agentResult.json, {
+      knownSessionIds: bundle.knownSessionIds,
+      knownProjects: bundle.knownProjects,
+    });
+
+    if (!valid.ok) {
+      if (DEBUG_TOKENS) {
+        console.log("[bumps] mentor tokens", {
+          promptEstimate,
+          responseEstimate: agentResult.tokens?.responseEstimate ?? 0,
+          agentUsage: agentResult.tokens?.agentUsage ?? {},
+          durationMs: agentResult.durationMs,
+          cacheKey,
+        });
+      }
+      lastFailure.set(cacheKey, {
+        reason: valid.reason || "validation_empty",
+        at: Date.now(),
+      });
+      return;
+    }
+
+    const toCache = {
+      status: "ready",
+      cacheKey,
+      mentor: valid.value,
+      generatedAt: new Date().toISOString(),
+    };
+    writeCache(cacheKey, toCache);
+    lastFailure.delete(cacheKey);
+
+    if (DEBUG_TOKENS) {
+      console.log("[bumps] mentor tokens", {
+        promptEstimate,
+        responseEstimate: agentResult.tokens?.responseEstimate,
+        agentUsage: agentResult.tokens?.agentUsage,
+        durationMs: agentResult.durationMs,
+        cacheKey,
+      });
+    }
+  })();
+
+  inFlight.set(cacheKey, job);
+  job.finally(() => {
+    inFlight.delete(cacheKey);
+  });
+}
+
+function __resetStateForTests() {
+  inFlight.clear();
+  lastFailure.clear();
 }
 
 module.exports = {
-  getMentorInsights,
+  getMentorStatusSync,
+  ensureMentorRunning,
   previewCacheStatus,
   getSessionFingerprint,
   getMentorCacheKey,
-  buildFallbackEnvelope,
+  __resetStateForTests,
 };

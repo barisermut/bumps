@@ -260,85 +260,53 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(style.out("  📚  Reading Cursor history…"));
-  const parseStarted = performance.now();
-  const parsedData = parse();
-  const parseMs = Math.round(performance.now() - parseStarted);
-  console.log(style.out(`  ⚡  Parsed in ${parseMs} ms`));
-  const nProjects = parsedData.projects.length;
-  const nConversations = parsedData.totalConversations;
-  console.log(
-    style.out(
-      `  🗂️   Found ${nProjects} project${nProjects === 1 ? "" : "s"}, ${nConversations} conversation${nConversations === 1 ? "" : "s"}`
-    )
-  );
-  let preWarmedMentor = null;
+  /** @type {ReturnType<typeof parse>} */
+  let parsedData;
+  let mentorSpinner = null;
   if (mode === "mentor") {
+    console.log(style.out("  🧠  Preparing your Mentor view…"));
+    console.log(style.out("  📚  Reading Cursor history…"));
+    const parseStarted = performance.now();
+    parsedData = parse();
+    const parseMs = Math.round(performance.now() - parseStarted);
+    console.log(style.out(`  ⚡  Parsed in ${parseMs} ms`));
+    const nProjects = parsedData.projects.length;
+    const nConversations = parsedData.totalConversations;
+    console.log(
+      style.out(
+        `  🗂️   Found ${nProjects} project${nProjects === 1 ? "" : "s"}, ${nConversations} conversation${nConversations === 1 ? "" : "s"}`
+      )
+    );
+
     const { spinner } = await import("@clack/prompts");
-    const { getMentorInsights, previewCacheStatus } = require("../src/lib/mentorInsights");
-    const { analyze } = require("../src/analyzer");
-
-    const mirror = analyze(parsedData, { project: null, timeRange: "all" });
-    const cacheStatus = previewCacheStatus(parsedData, {
-      project: null,
-      timeRange: "all",
-    });
-
-    if (cacheStatus.cold) {
-      console.log(style.out("  First Mentor analysis — this takes about a minute."));
-      console.log(
-        style.muted("  Subsequent runs are instant until your data changes.")
-      );
-      console.log("");
-    }
-
-    const s = spinner();
-    const started = Date.now();
-    const tick = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - started) / 1000);
-      const mm = Math.floor(elapsed / 60);
-      const ss = String(elapsed % 60).padStart(2, "0");
-      s.message(`Analyzing your sessions... ${mm}:${ss} elapsed`);
-    }, 1000);
-
-    s.start("Analyzing your sessions... 0:00 elapsed");
-
-    try {
-      preWarmedMentor = await getMentorInsights({
-        parsedData,
-        mirror,
-        filter: { project: null, timeRange: "all" },
-      });
-      clearInterval(tick);
-      if (preWarmedMentor.fallback.used) {
-        s.stop(
-          `Mentor fell back to Mirror (${preWarmedMentor.fallback.reason}).`
-        );
-      } else {
-        s.stop(
-          preWarmedMentor.fromCache
-            ? "Loaded cached Mentor insights."
-            : "Done."
-        );
-      }
-    } catch (err) {
-      clearInterval(tick);
-      console.error(err);
-      s.stop("Mentor failed — continuing with Mirror.");
-      preWarmedMentor = null;
-    }
-    console.log("");
+    mentorSpinner = spinner();
+    mentorSpinner.start("Mentor is analyzing your sessions...");
   } else {
+    console.log(style.out("  📚  Reading Cursor history…"));
+    const parseStarted = performance.now();
+    parsedData = parse();
+    const parseMs = Math.round(performance.now() - parseStarted);
+    console.log(style.out(`  ⚡  Parsed in ${parseMs} ms`));
+    const nProjects = parsedData.projects.length;
+    const nConversations = parsedData.totalConversations;
+    console.log(
+      style.out(
+        `  🗂️   Found ${nProjects} project${nProjects === 1 ? "" : "s"}, ${nConversations} conversation${nConversations === 1 ? "" : "s"}`
+      )
+    );
     console.log(style.out("  🧠  Analyzing patterns…"));
   }
 
   const dashboardPath = defaultDashboardPath();
 
+  if (mentorSpinner) {
+    mentorSpinner.stop();
+  }
+
   const server = startServer({
     parsedData,
     port,
     dashboardPath,
-    preWarmedMentor,
     logListenMessage: false,
     onListenError(err) {
       if (err.code === "EADDRINUSE") {
@@ -353,7 +321,9 @@ async function main() {
       process.exit(1);
     },
     onListening() {
-      console.log(style.accent("  ✨  Insights ready"));
+      if (mode !== "mentor") {
+        console.log(style.accent("  ✨  Insights ready"));
+      }
       console.log("");
       console.log(
         style.out(

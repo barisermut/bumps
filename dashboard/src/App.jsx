@@ -34,15 +34,7 @@ export default function App() {
   }
 
   if (mode === 'mentor') {
-    return (
-      <MentorDashboard
-        projects={projects}
-        selectedProject={selectedProject}
-        onProjectChange={setSelectedProject}
-        timeRange={timeRange}
-        onTimeRangeChange={setTimeRange}
-      />
-    )
+    return <MentorDashboard />
   }
 
   return (
