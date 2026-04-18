@@ -11,8 +11,20 @@ import ProjectPerformanceTable from './components/ProjectPerformanceTable'
  * @typedef {{
  *   status: 'ready' | 'computing' | 'error';
  *   cacheKey: string;
- *   stats: { totalSessions: number; totalMessages: number; avgSessionMinutes: number; frustrationPercent: number };
- *   mentor?: { insights: object[]; themes: object[]; topPatterns: object[]; toolsAndMcps: object[]; perProject: object[] };
+ *   stats: {
+ *     totalSessions: number;
+ *     totalMessages: number;
+ *     avgSessionMinutes: number;
+ *     frustrationPercent: number;
+ *     perProject: Array<{ project: string; sessions: number; messages: number; avgTimeMinutes: number; frustrationPercent: number }>;
+ *   };
+ *   mentor?: {
+ *     insights: object[];
+ *     themes: object[];
+ *     topPatterns: object[];
+ *     toolsAndMcps: object[];
+ *     perProject: Array<{ project: string; sessions: number; messages: number; avgTimeMinutes: number; frustrationPercent: number; insight?: string }>;
+ *   };
  *   reason?: string | null;
  * }} MentorSnap
  */
@@ -41,6 +53,7 @@ export default function MentorDashboard() {
               totalMessages: 0,
               avgSessionMinutes: 0,
               frustrationPercent: 0,
+              perProject: [],
             },
             reason: 'network_error',
           })
@@ -88,14 +101,17 @@ export default function MentorDashboard() {
 
         <MentorInsightsSection insights={snap?.mentor?.insights} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <BumpsBreakdown themes={snap?.mentor?.themes} />
           <TopPatterns patterns={snap?.mentor?.topPatterns} />
         </div>
 
         <ToolsMcpsChart items={snap?.mentor?.toolsAndMcps} />
 
-        <ProjectPerformanceTable rows={snap?.mentor?.perProject} />
+        <ProjectPerformanceTable
+          rows={snap?.stats?.perProject}
+          insights={snap?.mentor?.perProject}
+        />
       </main>
     </div>
   )

@@ -45,6 +45,7 @@ describe("mentorStats", () => {
       totalMessages: 0,
       avgSessionMinutes: 0,
       frustrationPercent: 0,
+      perProject: [],
     });
   });
 
@@ -78,5 +79,45 @@ describe("mentorStats", () => {
     const q = getQualifyingConversations(parsed);
     expect(q).toHaveLength(3);
     expect(q.every((c) => c.project === "keep")).toBe(true);
+  });
+
+  it("perProject aggregates all qualifying sessions per project (no cap)", () => {
+    const sessionCount = 15;
+    const rows = [];
+    for (let i = 0; i < sessionCount; i++) {
+      rows.push(conv("alpha", `a${i}`, 2, "ok"));
+    }
+    const parsed = {
+      conversations: rows,
+      projects: ["alpha"],
+      totalConversations: sessionCount,
+      parserMeta: {},
+    };
+    const stats = computeMentorStats(parsed);
+    expect(stats.perProject).toEqual([
+      {
+        project: "alpha",
+        sessions: sessionCount,
+        messages: sessionCount * 3,
+        avgTimeMinutes: 60,
+        frustrationPercent: 0,
+      },
+    ]);
+  });
+
+  it("perProject sorts by sessions desc then project name asc", () => {
+    const parsed = {
+      conversations: [
+        ...[0, 1, 2].map((i) => conv("zebra", `z${i}`, 2, "ok")),
+        ...[0, 1, 2, 3].map((i) => conv("apple", `ap${i}`, 2, "ok")),
+      ],
+      projects: ["zebra", "apple"],
+      totalConversations: 7,
+      parserMeta: {},
+    };
+    const stats = computeMentorStats(parsed);
+    expect(stats.perProject.map((r) => r.project)).toEqual(["apple", "zebra"]);
+    expect(stats.perProject[0].sessions).toBe(4);
+    expect(stats.perProject[1].sessions).toBe(3);
   });
 });

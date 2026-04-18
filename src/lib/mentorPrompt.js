@@ -91,6 +91,28 @@ function sessionIdShort(c) {
   return id || "unknown";
 }
 
+function humanizeProjectLabel(s) {
+  if (typeof s !== "string") return "";
+  return s
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeProjectKeyForKnown(s) {
+  return humanizeProjectLabel(s).toLowerCase();
+}
+
+const GENERIC_PROJECT_KEYS_FOR_KNOWN = new Set([
+  "",
+  "window",
+  "empty window",
+  "global",
+  "untitled",
+  "unknown",
+]);
+
 /**
  * User messages whose index in the full conversation lies in the middle 50%
  * of message positions, containing correction signals.
@@ -176,6 +198,13 @@ function mapRow(c) {
     linesChanged: (Number(c.linesAdded) || 0) + (Number(c.linesRemoved) || 0),
     toolsUsed: dedupeTools(c.toolsUsed).slice(0, 8),
     skillsUsed: (c.skillsReferenced || []).slice(0, 8),
+    mcpServers: dedupeTools(
+      (c.messages || []).flatMap((m) =>
+        (m.mcpDescriptors || [])
+          .map((d) => (typeof d === "string" ? d : d && d.name))
+          .filter(Boolean)
+      )
+    ).slice(0, 8),
     durationMinutes: computeSessionSpanMinutes(c),
     modelUsed: firstAssistantModelId(c),
     firstUserMessage: getFirstUserMessage(c),
@@ -195,7 +224,9 @@ function assemblePrompt(sessionRows, projectArcs, stats) {
     "- Plain English only. Human readable names: use spaces, never underscores or hyphens in project or tool names inside string fields.",
     "- Write for a non-technical builder reading a dashboard.",
     "- Every insights[] entry MUST cite evidence from at least three distinct sessions: sessionCount must be at least 3, and projects must list at least three distinct project names from the data. Drop weaker insights.",
+    "- toolsAndMcps MUST only contain entries from each session's skillsUsed and mcpServers fields. Never include internal file operation tools (read file, edit file, write file, ripgrep search, grep, glob, terminal, run command, or any Cursor tool name). Count sessions where each skill or MCP server appears.",
     "- insights max 6. themes max 6. topPatterns max 5. toolsAndMcps max 8.",
+    "- perProject[].insight: one to two sentences, plain English, specific to that project's sessions only. Describe one observation about what makes this project's sessions distinct from the others. Do not print numbers, decimals, or percentages.",
     "- This developer uses an agentic coding tool. Do not treat linesChanged alone as a problem; focus on correction cycles, mid-session drift (middleSignals), abandonment, and repeated friction.",
     "",
     "Schema (top-level object):",
@@ -217,7 +248,8 @@ function assemblePrompt(sessionRows, projectArcs, stats) {
     '    "sessions": number,',
     '    "messages": number,',
     '    "avgTimeMinutes": number,',
-    '    "frustrationPercent": number',
+    '    "frustrationPercent": number,',
+    '    "insight": string',
     "  }]",
     "}",
     "",
@@ -290,7 +322,14 @@ function buildMentorPromptBundle(parsedData) {
   }
 
   const knownSessionIds = new Set(capped.map(sessionIdShort));
-  const knownProjects = new Set(capped.map((c) => c.project || "Unknown"));
+  const knownProjects = new Set();
+  for (const c of capped) {
+    const raw = c.project || "Unknown";
+    const key = normalizeProjectKeyForKnown(raw);
+    if (GENERIC_PROJECT_KEYS_FOR_KNOWN.has(key)) continue;
+    const display = humanizeProjectLabel(raw) || "Unknown";
+    knownProjects.add(display);
+  }
 
   return {
     prompt,

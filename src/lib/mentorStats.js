@@ -81,6 +81,13 @@ function getQualifyingConversations(parsedData) {
  *   totalMessages: number;
  *   avgSessionMinutes: number;
  *   frustrationPercent: number;
+ *   perProject: Array<{
+ *     project: string;
+ *     sessions: number;
+ *     messages: number;
+ *     avgTimeMinutes: number;
+ *     frustrationPercent: number;
+ *   }>;
  * }}
  */
 function computeMentorStats(parsedData) {
@@ -92,6 +99,7 @@ function computeMentorStats(parsedData) {
       totalMessages: 0,
       avgSessionMinutes: 0,
       frustrationPercent: 0,
+      perProject: [],
     };
   }
 
@@ -100,16 +108,40 @@ function computeMentorStats(parsedData) {
   let spanN = 0;
   let frustrated = 0;
 
+  /** @type {Map<string, { sessions: number; messages: number; spanSum: number; spanN: number; frustrated: number }>} */
+  const byProject = new Map();
+
   for (const c of conv) {
-    totalMessages += Number(c.messageCount) || (c.messages?.length ?? 0);
+    const p = c.project || "Unknown";
+    if (!byProject.has(p)) {
+      byProject.set(p, {
+        sessions: 0,
+        messages: 0,
+        spanSum: 0,
+        spanN: 0,
+        frustrated: 0,
+      });
+    }
+    const agg = byProject.get(p);
+
+    const msgCount = Number(c.messageCount) || (c.messages?.length ?? 0);
+    totalMessages += msgCount;
+    agg.sessions += 1;
+    agg.messages += msgCount;
+
     const span = computeSessionSpanMinutes(c);
     if (span != null) {
       spanSum += span;
       spanN += 1;
+      agg.spanSum += span;
+      agg.spanN += 1;
     }
     const userMsg = Number(c.userMessageCount) || 0;
     const corr = countFixCycles(c);
-    if (userMsg > 0 && corr / userMsg >= 0.25) frustrated += 1;
+    if (userMsg > 0 && corr / userMsg >= 0.25) {
+      frustrated += 1;
+      agg.frustrated += 1;
+    }
   }
 
   const avgSessionMinutes =
@@ -117,11 +149,29 @@ function computeMentorStats(parsedData) {
   const frustrationPercent =
     Math.round((frustrated / totalSessions) * 1000) / 10;
 
+  const perProject = [...byProject.entries()].map(([project, a]) => ({
+    project,
+    sessions: a.sessions,
+    messages: a.messages,
+    avgTimeMinutes:
+      a.spanN > 0 ? Math.round((a.spanSum / a.spanN) * 10) / 10 : 0,
+    frustrationPercent:
+      a.sessions > 0
+        ? Math.round((a.frustrated / a.sessions) * 1000) / 10
+        : 0,
+  }));
+
+  perProject.sort((x, y) => {
+    if (y.sessions !== x.sessions) return y.sessions - x.sessions;
+    return String(x.project).localeCompare(String(y.project));
+  });
+
   return {
     totalSessions,
     totalMessages,
     avgSessionMinutes,
     frustrationPercent,
+    perProject,
   };
 }
 

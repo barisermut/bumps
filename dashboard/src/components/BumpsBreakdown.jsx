@@ -17,6 +17,32 @@ const PIE_COLORS = [
   'oklch(0.55 0.02 55)',
 ]
 
+function PieTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const item = payload[0]
+  const name = item?.name
+  const value = item?.value
+  const fill = item?.payload?.fill ?? PIE_COLORS[0]
+  return (
+    <div
+      className="rounded-lg border border-border-subtle px-3 py-2 text-[12px] shadow-sm"
+      style={{
+        backgroundColor: 'oklch(0.16 0.01 55)',
+        color: TEXT_PRIMARY_CHART,
+      }}
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        <span
+          className="size-2 rounded-sm shrink-0"
+          style={{ backgroundColor: fill }}
+        />
+        <span className="font-medium truncate">{name}</span>
+      </div>
+      <p className="tabular-nums mt-1 pl-4 text-[11px] opacity-90">{value}%</p>
+    </div>
+  )
+}
+
 /**
  * @param {{
  *   themes: Array<{ name: string; share: number }> | undefined;
@@ -25,26 +51,31 @@ const PIE_COLORS = [
 export default function BumpsBreakdown({ themes }) {
   if (!themes || themes.length === 0) {
     return (
-      <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3 min-h-[14rem]">
-        <h2 className="font-display text-base text-text-primary">Bumps breakdown</h2>
+      <section className="bg-surface-900 rounded-xl border border-border-subtle p-5 flex flex-col gap-3 min-h-[14rem]">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted mb-3">
+          BUMPS BREAKDOWN
+        </h2>
         <WidgetEmptyState
           title="No themes yet"
-          hint="Mentor will cluster themes when analysis finishes."
+          hint="No themes in this period."
           className="flex-1"
         />
       </section>
     )
   }
 
-  const data = themes.map((t) => ({
+  const data = themes.map((t, i) => ({
     name: t.name,
     value: Math.round((t.share || 0) * 1000) / 10,
+    fill: PIE_COLORS[i % PIE_COLORS.length],
   }))
 
   return (
-    <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3">
-      <h2 className="font-display text-base text-text-primary">Bumps breakdown</h2>
-      <div className="h-[240px] w-full">
+    <section className="bg-surface-900 rounded-xl border border-border-subtle p-5 pt-4 flex flex-col gap-3">
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted mb-3">
+        BUMPS BREAKDOWN
+      </h2>
+      <div className="min-h-[240px] h-[240px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -59,32 +90,28 @@ export default function BumpsBreakdown({ themes }) {
               stroke="oklch(0.20 0.012 50)"
               strokeWidth={1}
             >
-              {data.map((_, i) => (
-                <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+              {data.map((d, i) => (
+                <Cell key={i} fill={d.fill} />
               ))}
             </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'oklch(0.16 0.01 55)',
-                border: '1px solid oklch(0.20 0.008 50)',
-                borderRadius: '8px',
-                fontSize: '12px',
-                color: TEXT_PRIMARY_CHART,
-              }}
-              formatter={(value) => [`${value}%`, 'Share']}
-            />
+            <Tooltip content={<PieTooltip />} />
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <ul className="space-y-1 text-[11px] text-text-muted">
+      <ul
+        role="list"
+        className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[12px]"
+      >
         {data.map((d, i) => (
-          <li key={d.name} className="flex items-center gap-2">
+          <li key={d.name} className="flex items-center gap-2 min-w-0">
             <span
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+              className="size-2 rounded-sm shrink-0"
+              style={{ backgroundColor: d.fill }}
             />
-            <span className="text-text-secondary truncate">{d.name}</span>
-            <span className="ml-auto tabular-nums">{d.value}%</span>
+            <span className="text-text-secondary truncate min-w-0">{d.name}</span>
+            <span className="ml-auto tabular-nums text-text-primary font-medium shrink-0">
+              {d.value}%
+            </span>
           </li>
         ))}
       </ul>

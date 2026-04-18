@@ -231,6 +231,7 @@ function runMentorAgent(prompt, _opts = {}) {
 const MAX_TITLE = 200;
 const MAX_DIAGNOSIS = 800;
 const MAX_GUIDANCE = 800;
+const MAX_PER_PROJECT_INSIGHT = 400;
 
 function humanizeName(s) {
   if (typeof s !== "string") return "";
@@ -243,6 +244,20 @@ function humanizeName(s) {
 
 function normalizeProjectKey(s) {
   return humanizeName(s).toLowerCase();
+}
+
+const GENERIC_PROJECT_KEYS = new Set([
+  "",
+  "window",
+  "empty window",
+  "global",
+  "untitled",
+  "unknown",
+]);
+
+/** @param {string} key — normalized lowercase key from normalizeProjectKey */
+function isGenericProjectKey(key) {
+  return GENERIC_PROJECT_KEYS.has(key);
 }
 
 /**
@@ -306,6 +321,10 @@ function validateMentorResponse(json, ctx) {
     for (const pr of projectsRaw) {
       if (typeof pr !== "string") continue;
       const key = normalizeProjectKey(pr);
+      if (isGenericProjectKey(key)) {
+        warnings.push("dropped_generic_project_in_insight");
+        continue;
+      }
       const canonical = projIndex.get(key);
       if (canonical) projectsOut.push(canonical);
       else warnings.push("dropped_unknown_project_in_insight");
@@ -375,11 +394,19 @@ function validateMentorResponse(json, ctx) {
     if (!pp || typeof pp !== "object") continue;
     if (typeof pp.project !== "string") continue;
     const key = normalizeProjectKey(pp.project);
+    if (isGenericProjectKey(key)) {
+      warnings.push("dropped_generic_per_project");
+      continue;
+    }
     const display = projIndex.get(key);
     if (!display) {
       warnings.push("dropped_unknown_per_project");
       continue;
     }
+    const insightText =
+      typeof pp.insight === "string"
+        ? truncateStr(pp.insight.trim(), MAX_PER_PROJECT_INSIGHT)
+        : "";
     perProjectOut.push({
       project: display,
       sessions: Math.max(0, Math.floor(Number(pp.sessions) || 0)),
@@ -392,6 +419,7 @@ function validateMentorResponse(json, ctx) {
         0,
         Math.min(100, Math.round((Number(pp.frustrationPercent) || 0) * 10) / 10)
       ),
+      insight: insightText,
     });
   }
 

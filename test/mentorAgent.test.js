@@ -27,6 +27,7 @@ describe("validateMentorResponse", () => {
           messages: 10,
           avgTimeMinutes: 5,
           frustrationPercent: 12,
+          insight: "Distinct focus on refactors.",
         },
       ],
     };
@@ -34,6 +35,7 @@ describe("validateMentorResponse", () => {
     expect(out.ok).toBe(true);
     expect(out.value.insights).toHaveLength(1);
     expect(out.value.insights[0].projects).toEqual(["p1", "p2", "p3"]);
+    expect(out.value.perProject[0].insight).toBe("Distinct focus on refactors.");
   });
 
   it("drops insights with fewer than 3 projects", () => {
@@ -94,6 +96,7 @@ describe("validateMentorResponse", () => {
     expect(out.ok).toBe(true);
     expect(out.value.insights[0].projects[0]).toBe("my proj");
     expect(out.value.perProject[0].project).toBe("my proj");
+    expect(out.value.perProject[0].insight).toBe("");
   });
 
   it("returns validation_empty when insights missing", () => {
@@ -116,5 +119,108 @@ describe("validateMentorResponse", () => {
     const out = validateMentorResponse(json, { knownSessionIds, knownProjects });
     expect(out.ok).toBe(true);
     expect(out.value.themes[0].share).toBe(1);
+  });
+
+  it("drops generic perProject rows with warning", () => {
+    const json = {
+      insights: [baseInsight],
+      themes: [{ name: "t", share: 0.5 }],
+      topPatterns: [],
+      toolsAndMcps: [{ name: "read_file", sessionCount: 2 }],
+      perProject: [
+        {
+          project: "untitled",
+          sessions: 1,
+          messages: 1,
+          avgTimeMinutes: 1,
+          frustrationPercent: 0,
+        },
+        {
+          project: "p1",
+          sessions: 3,
+          messages: 10,
+          avgTimeMinutes: 5,
+          frustrationPercent: 12,
+        },
+      ],
+    };
+    const out = validateMentorResponse(json, { knownSessionIds, knownProjects });
+    expect(out.ok).toBe(true);
+    expect(out.value.perProject).toHaveLength(1);
+    expect(out.value.perProject[0].project).toBe("p1");
+    expect(out.value.perProject[0].insight).toBe("");
+    expect(out.warnings).toContain("dropped_generic_per_project");
+  });
+
+  it("drops generic names from insight projects list with warning", () => {
+    const json = {
+      insights: [
+        {
+          ...baseInsight,
+          projects: ["p1", "window", "p2", "p3"],
+          sessionCount: 5,
+        },
+      ],
+      themes: [{ name: "t", share: 0.5 }],
+      topPatterns: [],
+      toolsAndMcps: [{ name: "read_file", sessionCount: 2 }],
+      perProject: [
+        {
+          project: "p1",
+          sessions: 3,
+          messages: 10,
+          avgTimeMinutes: 5,
+          frustrationPercent: 12,
+        },
+      ],
+    };
+    const out = validateMentorResponse(json, { knownSessionIds, knownProjects });
+    expect(out.ok).toBe(true);
+    expect(out.value.insights[0].projects).toEqual(["p1", "p2", "p3"]);
+    expect(out.warnings).toContain("dropped_generic_project_in_insight");
+  });
+
+  it("defaults missing perProject insight to empty string", () => {
+    const json = {
+      insights: [baseInsight],
+      themes: [{ name: "t", share: 0.5 }],
+      topPatterns: [],
+      toolsAndMcps: [{ name: "read_file", sessionCount: 2 }],
+      perProject: [
+        {
+          project: "p1",
+          sessions: 3,
+          messages: 10,
+          avgTimeMinutes: 5,
+          frustrationPercent: 12,
+        },
+      ],
+    };
+    const out = validateMentorResponse(json, { knownSessionIds, knownProjects });
+    expect(out.ok).toBe(true);
+    expect(out.value.perProject[0].insight).toBe("");
+  });
+
+  it("truncates long perProject insight", () => {
+    const longInsight = "x".repeat(500);
+    const json = {
+      insights: [baseInsight],
+      themes: [{ name: "t", share: 0.5 }],
+      topPatterns: [],
+      toolsAndMcps: [{ name: "read_file", sessionCount: 2 }],
+      perProject: [
+        {
+          project: "p1",
+          sessions: 3,
+          messages: 10,
+          avgTimeMinutes: 5,
+          frustrationPercent: 12,
+          insight: longInsight,
+        },
+      ],
+    };
+    const out = validateMentorResponse(json, { knownSessionIds, knownProjects });
+    expect(out.ok).toBe(true);
+    expect(out.value.perProject[0].insight.length).toBe(400);
   });
 });

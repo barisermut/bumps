@@ -14,7 +14,7 @@ function baseConversation(i, project, lastUserText) {
     userMessageCount: 2,
     messageCount: 3,
     messages: [
-      { role: "user", text: "hello" },
+      { role: "user", text: "hello", mcpDescriptors: ["context7"] },
       { role: "assistant", text: "ok", modelId: "gpt-4o" },
       { role: "user", text: lastUserText },
     ],
@@ -49,6 +49,8 @@ describe("buildMentorPrompt", () => {
     expect(prompt).toContain("Sessions");
     expect(prompt).not.toContain("Mirror pre-analysis");
     expect(prompt).not.toContain("firstPrompt");
+    expect(prompt).toContain("skillsUsed and mcpServers");
+    expect(prompt).toContain('"insight": string');
 
     const rows = bundle.sessionRows;
     expect(rows.length).toBeGreaterThan(0);
@@ -59,7 +61,10 @@ describe("buildMentorPrompt", () => {
       expect(row).not.toHaveProperty("firstPrompt");
       expect(row).toHaveProperty("toolsUsed");
       expect(row).toHaveProperty("skillsUsed");
+      expect(row).toHaveProperty("mcpServers");
+      expect(Array.isArray(row.mcpServers)).toBe(true);
     }
+    expect(rows.some((r) => r.mcpServers.includes("context7"))).toBe(true);
     expect(bundle.stats.totalSessions).toBe(9);
     const heavyArc = bundle.projectArcs.find((a) => a.project === "pa");
     expect(heavyArc).toBeTruthy();
@@ -82,10 +87,7 @@ describe("buildMentorPrompt", () => {
       parserMeta: {},
     };
     const bundle = buildMentorPromptBundle(parsed);
-    const sessionsPart = bundle.prompt.split("Sessions")[1].split("Return only")[0];
-    const jsonStart = sessionsPart.indexOf("[");
-    const rows = JSON.parse(sessionsPart.slice(jsonStart).trim());
-    expect(rows.every((r) => r.project === "heavy")).toBe(true);
+    expect(bundle.sessionRows.every((r) => r.project === "heavy")).toBe(true);
   });
 
   it("estimateTokens under18k hard cap for 200-session fixture", () => {
