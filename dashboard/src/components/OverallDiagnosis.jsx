@@ -1,4 +1,4 @@
-import MentorSectionHeader from './MentorSectionHeader'
+import HowThisWorksButton from './HowThisWorksButton'
 
 /**
  * @param {{
@@ -15,16 +15,18 @@ export default function OverallDiagnosis({
   timeRangeLabel,
 }) {
   return (
-    <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3">
-      <MentorSectionHeader
-        title="Overall diagnosis"
-        sessionCount={sessionCount}
-        projectLabel={projectLabel}
-        timeRangeLabel={timeRangeLabel}
-      />
-      <p className="font-display text-lg text-text-primary leading-relaxed">
-        {text}
-      </p>
+    <section className="px-1 pt-2 pb-4 flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-4">
+        <p className="font-display text-2xl md:text-3xl text-text-primary leading-tight tracking-tight max-w-3xl">
+          {text}
+        </p>
+        <HowThisWorksButton
+          sectionTitle="Overall diagnosis"
+          sessionCount={sessionCount}
+          projectLabel={projectLabel}
+          timeRangeLabel={timeRangeLabel}
+        />
+      </div>
     </section>
   )
 }

@@ -1,5 +1,7 @@
 "use strict";
 
+const DEBUG_TOKENS = process.env.BUMPS_DEBUG === "1";
+
 /**
  * Mentor prompt builder. Duplicates minimal keyword/category logic from
  * src/analyzer.js (not exported there) so analyzer stays unchanged.
@@ -312,6 +314,10 @@ function buildMentorPromptBundle(parsedData, mirrorInsights, filter = {}) {
       "- Tone: direct, specific, grounded. No generic productivity advice.",
       "- Output MUST be valid JSON matching the schema below. No prose outside JSON. No markdown.",
       "- This developer uses an agentic coding tool (Cursor) where planning and execution often happen in the same session. Do not treat linesChanged as evidence of constraint violation or broken intent. A session that discusses approach, architecture, or planning AND has linesChanged is normal agentic workflow — the model plans then immediately executes. Only flag a pattern if the behavioral signal comes from correction cycles, abandonment, or repeated return to the same topic — not from the presence of code changes alongside planning language.",
+      "- Never mention correctionRate, abandonmentRate, or any raw decimal numbers in your output. Translate all metrics into plain English. Instead of 'correctionRate 0.4063' write 'you frequently restart or backtrack in this project'.",
+      "- Write for a non-technical builder reading a dashboard, not a data analyst. Every sentence must be immediately understandable without knowing what correction cycles or abandonment rates mean.",
+      "- overallDiagnosis must be maximum 2 sentences. Write like a coach, not a performance review. Direct, human, no jargon.",
+      "- perProject diagnosis must be 1 sentence maximum. Name the specific behavior, not the metric.",
       "",
       "A pattern requires evidence from at least 3 distinct sessions. A pattern with only 1-2 sessions of evidence is an incident, not a behavioral pattern — either find more evidence or drop the pattern entirely. Prefer patterns that have evidence across multiple projects when possible.",
       "If correctionRate or abandonmentRate is high on a project, that is strong evidence for a friction pattern — cite it explicitly.",
@@ -361,7 +367,9 @@ function buildMentorPromptBundle(parsedData, mirrorInsights, filter = {}) {
   let tok = estimateTokens(prompt);
 
   if (tok > TOKEN_SOFT) {
-    console.warn(`[bumps] mentor prompt estimate ${tok} tokens exceeds soft target ${TOKEN_SOFT}`);
+    if (DEBUG_TOKENS) {
+      console.warn(`[bumps] mentor prompt estimate ${tok} tokens exceeds soft target ${TOKEN_SOFT}`);
+    }
   }
 
   while (tok > TOKEN_HARD && capped.length > MIN_SESSIONS_AFTER_TRIM) {

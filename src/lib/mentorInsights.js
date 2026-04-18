@@ -9,6 +9,8 @@ const {
 const mentorAgent = require("./mentorAgent");
 const { readCache, writeCache, existsCached } = require("./mentorCache");
 
+const DEBUG_TOKENS = process.env.BUMPS_DEBUG === "1";
+
 function normalizeFilter(f) {
   return {
     project: f.project ?? null,
@@ -99,13 +101,15 @@ async function getMentorInsights({ parsedData, mirror, filter }) {
 
   const agentResult = await mentorAgent.runMentorAgent(bundle.prompt);
   if (!agentResult.ok) {
-    console.log("[bumps] mentor tokens", {
-      promptEstimate,
-      responseEstimate: 0,
-      agentUsage: {},
-      durationMs: agentResult.durationMs,
-      cacheKey,
-    });
+    if (DEBUG_TOKENS) {
+      console.log("[bumps] mentor tokens", {
+        promptEstimate,
+        responseEstimate: 0,
+        agentUsage: {},
+        durationMs: agentResult.durationMs,
+        cacheKey,
+      });
+    }
     return buildFallbackEnvelope({
       filter: nf,
       mirror,
@@ -120,13 +124,15 @@ async function getMentorInsights({ parsedData, mirror, filter }) {
   });
 
   if (!valid.ok) {
-    console.log("[bumps] mentor tokens", {
-      promptEstimate,
-      responseEstimate: agentResult.tokens?.responseEstimate ?? 0,
-      agentUsage: agentResult.tokens?.agentUsage ?? {},
-      durationMs: agentResult.durationMs,
-      cacheKey,
-    });
+    if (DEBUG_TOKENS) {
+      console.log("[bumps] mentor tokens", {
+        promptEstimate,
+        responseEstimate: agentResult.tokens?.responseEstimate ?? 0,
+        agentUsage: agentResult.tokens?.agentUsage ?? {},
+        durationMs: agentResult.durationMs,
+        cacheKey,
+      });
+    }
     return buildFallbackEnvelope({
       filter: nf,
       mirror,
@@ -163,13 +169,15 @@ async function getMentorInsights({ parsedData, mirror, filter }) {
   };
   writeCache(cacheKey, toCache);
 
-  console.log("[bumps] mentor tokens", {
-    promptEstimate,
-    responseEstimate: agentResult.tokens?.responseEstimate,
-    agentUsage: agentResult.tokens?.agentUsage,
-    durationMs: agentResult.durationMs,
-    cacheKey,
-  });
+  if (DEBUG_TOKENS) {
+    console.log("[bumps] mentor tokens", {
+      promptEstimate,
+      responseEstimate: agentResult.tokens?.responseEstimate,
+      agentUsage: agentResult.tokens?.agentUsage,
+      durationMs: agentResult.durationMs,
+      cacheKey,
+    });
+  }
 
   return envelope;
 }

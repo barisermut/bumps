@@ -195,7 +195,7 @@ export default function MentorDashboard({
       )}
 
       {!isLoading && mentor && (
-        <main className="flex-1 p-4 flex flex-col gap-4 overflow-y-auto min-h-0">
+        <main className="flex-1 px-6 py-8 flex flex-col gap-10 overflow-y-auto min-h-0">
           <OverallDiagnosis
             text={mentor.overallDiagnosis}
             sessionCount={sessionCount}
@@ -203,35 +203,39 @@ export default function MentorDashboard({
             timeRangeLabel={timeRangeLabel}
           />
 
-          <section className="flex flex-col gap-2">
+          <hr className="border-border-subtle/60" />
+
+          <section className="flex flex-col gap-4">
             <MentorSectionHeader
               title="Patterns"
               sessionCount={sessionCount}
               projectLabel={projectLabel}
               timeRangeLabel={timeRangeLabel}
             />
-            <div className="space-y-2">
+            <div className="space-y-5">
               {mentor.patterns.map((p) => (
                 <PatternCard key={p.id} pattern={p} />
               ))}
             </div>
           </section>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
+          <hr className="border-border-subtle/60" />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <ThemeBreakdown
               themes={mentor.themes}
               sessionCount={sessionCount}
               projectLabel={projectLabel}
               timeRangeLabel={timeRangeLabel}
             />
-            <div className="flex flex-col gap-2 min-w-0">
+            <div className="flex flex-col gap-4 min-w-0">
               <MentorSectionHeader
                 title="Per-project"
                 sessionCount={sessionCount}
                 projectLabel={projectLabel}
                 timeRangeLabel={timeRangeLabel}
               />
-              <div className="space-y-2">
+              <div className="space-y-4">
                 {mentor.perProject?.length ? (
                   mentor.perProject.map((pp) => (
                     <ProjectDiagnosisCard

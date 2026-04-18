@@ -4,6 +4,7 @@ const { spawn } = require("child_process");
 const { estimateTokens } = require("./mentorPrompt");
 
 const DEFAULT_TIMEOUT_MS = 90_000;
+const DEBUG_TOKENS = process.env.BUMPS_DEBUG === "1";
 
 /**
  * @param {string} stdout
@@ -109,9 +110,11 @@ function runMentorAgent(prompt, opts = {}) {
       const promptEstimate = estimateTokens(prompt);
       const reason =
         err && err.code === "ENOENT" ? "agent_missing" : `agent_spawn_error`;
-      console.log(
-        `[bumps] mentor tokens: prompt=${promptEstimate} response~0 agentUsage={} durationMs=${durationMs} reason=${reason}`
-      );
+      if (DEBUG_TOKENS) {
+        console.log(
+          `[bumps] mentor tokens: prompt=${promptEstimate} response~0 agentUsage={} durationMs=${durationMs} reason=${reason}`
+        );
+      }
       finish({
         ok: false,
         reason: err && err.code === "ENOENT" ? "agent_missing" : reason,
@@ -151,9 +154,11 @@ function runMentorAgent(prompt, opts = {}) {
       if (settled) return;
 
       if (timedOut) {
-        console.log(
-          `[bumps] mentor tokens: prompt=${promptEstimate} response~0 agentUsage={} durationMs=${durationMs} reason=timeout_90s`
-        );
+        if (DEBUG_TOKENS) {
+          console.log(
+            `[bumps] mentor tokens: prompt=${promptEstimate} response~0 agentUsage={} durationMs=${durationMs} reason=timeout_90s`
+          );
+        }
         finish({
           ok: false,
           reason: "timeout_90s",
@@ -165,9 +170,11 @@ function runMentorAgent(prompt, opts = {}) {
 
       if (code !== 0) {
         const responseEstimate = Math.ceil(stdout.length / 4);
-        console.log(
-          `[bumps] mentor tokens: prompt=${promptEstimate} response~${responseEstimate} agentUsage={} durationMs=${durationMs} exit=${code}`
-        );
+        if (DEBUG_TOKENS) {
+          console.log(
+            `[bumps] mentor tokens: prompt=${promptEstimate} response~${responseEstimate} agentUsage={} durationMs=${durationMs} exit=${code}`
+          );
+        }
         finish({
           ok: false,
           reason: `agent_exit_${code}`,
@@ -193,9 +200,11 @@ function runMentorAgent(prompt, opts = {}) {
 
       const responseEstimate = Math.ceil((text || "").length / 4);
 
-      console.log(
-        `[bumps] mentor tokens: prompt=${promptEstimate} response~${responseEstimate} agentUsage=${JSON.stringify(envelopeUsage)} durationMs=${durationMs}`
-      );
+      if (DEBUG_TOKENS) {
+        console.log(
+          `[bumps] mentor tokens: prompt=${promptEstimate} response~${responseEstimate} agentUsage=${JSON.stringify(envelopeUsage)} durationMs=${durationMs}`
+        );
+      }
 
       if (!parsed || typeof parsed !== "object") {
         finish({

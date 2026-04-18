@@ -56,14 +56,14 @@ export default function ThemeBreakdown({
   }))
 
   return (
-    <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3 min-h-[280px]">
+    <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3">
       <MentorSectionHeader
         title="Theme breakdown"
         sessionCount={sessionCount}
         projectLabel={projectLabel}
         timeRangeLabel={timeRangeLabel}
       />
-      <div className="flex-1 min-h-[220px] w-full">
+      <div className="h-[240px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -72,8 +72,8 @@ export default function ThemeBreakdown({
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={55}
-              outerRadius={90}
+              innerRadius={62}
+              outerRadius={100}
               paddingAngle={2}
               stroke="oklch(0.20 0.012 50)"
               strokeWidth={1}
