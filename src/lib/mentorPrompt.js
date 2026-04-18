@@ -30,13 +30,43 @@ const CORRECTION_SIGNALS = [
 const MAX_SESSIONS_TOTAL = 100;
 const MAX_SESSIONS_PER_PROJECT = 10;
 const MIN_SESSIONS_AFTER_TRIM = 20;
-const TOKEN_SOFT = 15_000;
-const TOKEN_HARD = 18_000;
+const TOKEN_SOFT = 22_000;
+const TOKEN_HARD = 25_000;
+const TOKEN_TARGET = 20_000;
 
 function lastUserMessageText(c) {
   const msgs = (c.messages || []).filter((m) => m.role === "user");
   if (!msgs.length) return "";
   return msgs[msgs.length - 1].text || "";
+}
+
+function truncate(s, max) {
+  const t = (s || "").replace(/\s+/g, " ").trim();
+  return t.length > max ? t.slice(0, max) : t;
+}
+
+function getFirstUserMessage(c, max = 300) {
+  const m = (c.messages || []).find((x) => x.role === "user");
+  return truncate(m?.text, max);
+}
+
+function getLastUserMessage(c, max = 150) {
+  const msgs = (c.messages || []).filter((x) => x.role === "user");
+  return truncate(msgs[msgs.length - 1]?.text, max);
+}
+
+function getCorrectionMessages(c, max = 150, limit = 3) {
+  const out = [];
+  for (const m of c.messages || []) {
+    if (m.role !== "user") continue;
+    const raw = m.text || "";
+    const low = raw.toLowerCase();
+    if (CORRECTION_SIGNALS.some((sig) => low.includes(sig))) {
+      out.push(truncate(raw, max));
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
 }
 
 function lastUserMsgHasCorrectionSignal(c) {
@@ -148,6 +178,9 @@ function mapRow(c) {
     skillsUsed: (c.skillsReferenced || []).slice(0, 8),
     durationMinutes: computeSessionSpanMinutes(c),
     modelUsed: firstAssistantModelId(c),
+    firstUserMessage: getFirstUserMessage(c),
+    correctionMessages: getCorrectionMessages(c),
+    lastUserMessage: getLastUserMessage(c),
   };
 }
 
@@ -158,6 +191,7 @@ function assemblePrompt(sessionRows, projectArcs, stats) {
     "Constraints:",
     "- Output MUST be valid JSON matching the schema below. No prose outside JSON. No markdown.",
     "- Never print raw numbers, decimals, rates, or percentages in any string field (title, diagnosis, guidance, names). Translate every metric into plain English.",
+    "- The firstUserMessage, correctionMessages, and lastUserMessage fields are evidence for your analysis. Do not quote them verbatim in any output string; paraphrase and aggregate across sessions.",
     "- Plain English only. Human readable names: use spaces, never underscores or hyphens in project or tool names inside string fields.",
     "- Write for a non-technical builder reading a dashboard.",
     "- Every insights[] entry MUST cite evidence from at least three distinct sessions: sessionCount must be at least 3, and projects must list at least three distinct project names from the data. Drop weaker insights.",
@@ -193,7 +227,7 @@ function assemblePrompt(sessionRows, projectArcs, stats) {
     "Project arcs (cross-session aggregates — use for project-level patterns; cite qualitatively in prose fields only):",
     JSON.stringify(projectArcs),
     "",
-    "Sessions (structural signals only — no raw user prompt text):",
+    "Sessions (structural signals plus short excerpts of the user's own messages — firstUserMessage shows what the session was about, correctionMessages show the actual words used when things went wrong, lastUserMessage shows how the session ended):",
     JSON.stringify(sessionRows),
     "",
     "Return only the JSON object.",
