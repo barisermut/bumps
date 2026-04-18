@@ -7,25 +7,14 @@ import {
   Tooltip,
 } from 'recharts'
 import WidgetEmptyState from './WidgetEmptyState'
-import MentorLoadingInline from './MentorLoadingInline'
 import { TEXT_PRIMARY_CHART, TEXT_MUTED_CHART } from '../lib/severityColors'
 
 /**
  * @param {{
  *   patterns: Array<{ name: string; percentage: number }> | undefined;
- *   loading: boolean;
  * }} props
  */
-export default function TopPatterns({ patterns, loading }) {
-  if (loading) {
-    return (
-      <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3 min-h-[18rem]">
-        <h2 className="font-display text-base text-text-primary">Top patterns</h2>
-        <MentorLoadingInline className="flex-1 justify-center" />
-      </section>
-    )
-  }
-
+export default function TopPatterns({ patterns }) {
   if (!patterns || patterns.length === 0) {
     return (
       <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3 min-h-[14rem]">

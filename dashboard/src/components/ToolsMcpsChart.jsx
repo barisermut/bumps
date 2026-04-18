@@ -7,25 +7,14 @@ import {
   Tooltip,
 } from 'recharts'
 import WidgetEmptyState from './WidgetEmptyState'
-import MentorLoadingInline from './MentorLoadingInline'
 import { TEXT_PRIMARY_CHART, TEXT_MUTED_CHART } from '../lib/severityColors'
 
 /**
  * @param {{
  *   items: Array<{ name: string; sessionCount: number }> | undefined;
- *   loading: boolean;
  * }} props
  */
-export default function ToolsMcpsChart({ items, loading }) {
-  if (loading) {
-    return (
-      <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3 min-h-[16rem]">
-        <h2 className="font-display text-base text-text-primary">Tools and MCPs used</h2>
-        <MentorLoadingInline className="flex-1 justify-center" />
-      </section>
-    )
-  }
-
+export default function ToolsMcpsChart({ items }) {
   if (!items || items.length === 0) {
     return (
       <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3 min-h-[12rem]">

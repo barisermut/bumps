@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import MentorHeader from './components/MentorHeader'
 import MentorStatCards from './components/MentorStatCards'
 import MentorInsightsSection from './components/MentorInsightsSection'
@@ -20,20 +20,16 @@ import ProjectPerformanceTable from './components/ProjectPerformanceTable'
 export default function MentorDashboard() {
   /** @type {[MentorSnap | null, (v: MentorSnap | null) => void]} */
   const [snap, setSnap] = useState(null)
-  const timerRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
 
-    async function poll() {
+    async function load() {
       try {
         const r = await fetch('/api/mentor-insights')
         const data = await r.json()
         if (cancelled) return
         setSnap(data)
-        if (data.status === 'computing') {
-          timerRef.current = window.setTimeout(poll, 1000)
-        }
       } catch (e) {
         console.error('[bumps] mentor-insights fetch failed', e)
         if (!cancelled) {
@@ -52,14 +48,12 @@ export default function MentorDashboard() {
       }
     }
 
-    poll()
+    load()
     return () => {
       cancelled = true
-      if (timerRef.current != null) window.clearTimeout(timerRef.current)
     }
   }, [])
 
-  const aiLoading = snap?.status === 'computing' || snap == null
   const showErrorBanner =
     snap?.status === 'error' && snap.reason !== 'mentor_disabled'
 
@@ -92,22 +86,16 @@ export default function MentorDashboard() {
 
         <MentorStatCards stats={snap?.stats} />
 
-        <MentorInsightsSection
-          insights={snap?.mentor?.insights}
-          loading={aiLoading}
-        />
+        <MentorInsightsSection insights={snap?.mentor?.insights} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <BumpsBreakdown themes={snap?.mentor?.themes} loading={aiLoading} />
-          <TopPatterns patterns={snap?.mentor?.topPatterns} loading={aiLoading} />
+          <BumpsBreakdown themes={snap?.mentor?.themes} />
+          <TopPatterns patterns={snap?.mentor?.topPatterns} />
         </div>
 
-        <ToolsMcpsChart items={snap?.mentor?.toolsAndMcps} loading={aiLoading} />
+        <ToolsMcpsChart items={snap?.mentor?.toolsAndMcps} />
 
-        <ProjectPerformanceTable
-          rows={snap?.mentor?.perProject}
-          loading={aiLoading}
-        />
+        <ProjectPerformanceTable rows={snap?.mentor?.perProject} />
       </main>
     </div>
   )

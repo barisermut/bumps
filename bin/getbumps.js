@@ -10,6 +10,13 @@ const { parse } = require("../src/parser");
 const { startServer } = require("../src/server");
 const { getMentorState } = require("../src/lib/mentorState");
 const { installAgent, loginAgent } = require("../src/lib/mentorSetup");
+const { buildMentorPromptBundle, estimateTokens } = require("../src/lib/mentorPrompt");
+const {
+  ensureMentorRunning,
+  previewCacheStatus,
+  estimateMentorSeconds,
+} = require("../src/lib/mentorInsights");
+const { getQualifyingConversations } = require("../src/lib/mentorStats");
 
 /** https://no-color.org/ — NO_COLOR disables; FORCE_COLOR=0 disables; FORCE_COLOR=1 forces when not a TTY */
 const noColor = process.env.NO_COLOR != null && process.env.NO_COLOR !== "";
@@ -203,6 +210,38 @@ function openBrowser(url) {
   }
 }
 
+const MENTOR_PROGRESS_BAR_WIDTH = 30;
+
+/**
+ * @param {number} pct 0–100
+ * @param {number} elapsedSec
+ */
+function mentorProgressLineString(pct, elapsedSec) {
+  const p = Math.max(0, Math.min(100, Math.round(pct)));
+  const w = MENTOR_PROGRESS_BAR_WIDTH;
+  const filled = Math.round((p / 100) * w);
+  const bar =
+    "\u2588".repeat(filled) + "\u2591".repeat(Math.max(0, w - filled));
+  return `${bar}  ${p}% \u00b7 ${Math.round(elapsedSec)}s elapsed`;
+}
+
+/**
+ * Single-line in-place progress (TTY only). Uses CR + EL so one bar updates in place.
+ * @param {number} pct
+ * @param {number} elapsedSec
+ */
+function writeMentorProgressTTY(pct, elapsedSec) {
+  if (!process.stdout.isTTY) return;
+  process.stdout.write(
+    `\r  ${mentorProgressLineString(pct, elapsedSec)}\x1b[K`
+  );
+}
+
+function clearMentorProgressLine() {
+  if (!process.stdout.isTTY) return;
+  process.stdout.write("\r\x1b[K");
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const port = parsePort(argv);
@@ -262,7 +301,6 @@ async function main() {
 
   /** @type {ReturnType<typeof parse>} */
   let parsedData;
-  let mentorSpinner = null;
   if (mode === "mentor") {
     console.log(style.out("  🧠  Preparing your Mentor view…"));
     console.log(style.out("  📚  Reading Cursor history…"));
@@ -278,9 +316,41 @@ async function main() {
       )
     );
 
-    const { spinner } = await import("@clack/prompts");
-    mentorSpinner = spinner();
-    mentorSpinner.start("Mentor is analyzing your sessions...");
+    const { cold } = previewCacheStatus(parsedData);
+    if (cold && getQualifyingConversations(parsedData).length > 0) {
+      const bundle = buildMentorPromptBundle(parsedData);
+      const tokens = estimateTokens(bundle.prompt);
+      const estSec = estimateMentorSeconds(tokens);
+
+      console.log(
+        style.out(
+          `  Estimated analysis time: ~${estSec} seconds (${tokens.toLocaleString()} tokens)`
+        )
+      );
+      console.log("");
+
+      const startedAt = Date.now();
+      const tick = () => {
+        const elapsedSec = (Date.now() - startedAt) / 1000;
+        const pct = Math.min(95, Math.round((elapsedSec / estSec) * 100));
+        writeMentorProgressTTY(pct, elapsedSec);
+      };
+      tick();
+      const timer = setInterval(tick, 1000);
+
+      try {
+        await ensureMentorRunning(parsedData);
+      } finally {
+        clearInterval(timer);
+        const elapsedSec = (Date.now() - startedAt) / 1000;
+        writeMentorProgressTTY(100, elapsedSec);
+        clearMentorProgressLine();
+      }
+      console.log("  \u2713 Mentor analysis complete.");
+      console.log("");
+    } else {
+      await ensureMentorRunning(parsedData);
+    }
   } else {
     console.log(style.out("  📚  Reading Cursor history…"));
     const parseStarted = performance.now();
@@ -298,10 +368,6 @@ async function main() {
   }
 
   const dashboardPath = defaultDashboardPath();
-
-  if (mentorSpinner) {
-    mentorSpinner.stop();
-  }
 
   const server = startServer({
     parsedData,

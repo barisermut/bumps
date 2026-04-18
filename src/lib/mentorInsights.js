@@ -39,6 +39,16 @@ function previewCacheStatus(parsedData) {
 }
 
 /**
+ * Rough wall-clock estimate for composer-2-fast (42s at ~7000 prompt tokens).
+ * @param {number} tokens
+ * @returns {number}
+ */
+function estimateMentorSeconds(tokens) {
+  const raw = Math.round((Number(tokens) / 7000) * 42);
+  return Math.max(15, Math.min(90, raw));
+}
+
+/**
  * Synchronous snapshot for HTTP handler.
  * @param {{ conversations?: object[] }} parsedData
  * @returns {{
@@ -108,13 +118,14 @@ function getMentorStatusSync(parsedData) {
 }
 
 /**
- * Fire-and-forget agent run when status is computing and not already running.
+ * Start agent run when status is computing and not already running.
  * @param {{ conversations?: object[] }} parsedData
+ * @returns {Promise<void>}
  */
 function ensureMentorRunning(parsedData) {
   const cacheKey = getMentorCacheKey(getSessionFingerprint(parsedData));
   const qualifying = getQualifyingConversations(parsedData);
-  if (qualifying.length === 0) return;
+  if (qualifying.length === 0) return Promise.resolve();
 
   const cached = readCache(cacheKey);
   if (
@@ -124,13 +135,13 @@ function ensureMentorRunning(parsedData) {
     Array.isArray(cached.mentor.insights) &&
     cached.mentor.insights.length > 0
   ) {
-    return;
+    return Promise.resolve();
   }
-  if (inFlight.has(cacheKey)) return;
+  if (inFlight.has(cacheKey)) return inFlight.get(cacheKey);
 
   const prevFail = lastFailure.get(cacheKey);
   if (prevFail && Date.now() - prevFail.at < FAILURE_COOLDOWN_MS) {
-    return;
+    return Promise.resolve();
   }
   lastFailure.delete(cacheKey);
 
@@ -202,6 +213,7 @@ function ensureMentorRunning(parsedData) {
   job.finally(() => {
     inFlight.delete(cacheKey);
   });
+  return job;
 }
 
 function __resetStateForTests() {
@@ -213,6 +225,7 @@ module.exports = {
   getMentorStatusSync,
   ensureMentorRunning,
   previewCacheStatus,
+  estimateMentorSeconds,
   getSessionFingerprint,
   getMentorCacheKey,
   __resetStateForTests,

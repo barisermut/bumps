@@ -1,14 +1,12 @@
 import { Sparkles } from 'lucide-react'
 import { severityColor } from '../lib/severityColors'
-import MentorLoadingInline from './MentorLoadingInline'
 
 /**
  * @param {{
  *   insights: Array<{ id: string; severity: string; title: string; diagnosis: string; guidance: string }> | undefined;
- *   loading: boolean;
  * }} props
  */
-export default function MentorInsightsSection({ insights, loading }) {
+export default function MentorInsightsSection({ insights }) {
   return (
     <section className="rounded-2xl border border-border-subtle bg-surface-900/90 p-5 md:p-6 shadow-sm">
       <div className="flex items-center gap-2 mb-5">
@@ -18,13 +16,7 @@ export default function MentorInsightsSection({ insights, loading }) {
         </h2>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {Array.from({ length: 6 }, (_, i) => (
-            <MentorLoadingInline key={i} />
-          ))}
-        </div>
-      ) : !insights || insights.length === 0 ? (
+      {!insights || insights.length === 0 ? (
         <p className="text-sm text-text-muted py-6 text-center">
           No insights yet. If analysis failed, check the banner above or run
           Mentor again.

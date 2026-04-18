@@ -6,7 +6,6 @@ import {
   Tooltip,
 } from 'recharts'
 import WidgetEmptyState from './WidgetEmptyState'
-import MentorLoadingInline from './MentorLoadingInline'
 import { TEXT_PRIMARY_CHART } from '../lib/severityColors'
 
 const PIE_COLORS = [
@@ -21,19 +20,9 @@ const PIE_COLORS = [
 /**
  * @param {{
  *   themes: Array<{ name: string; share: number }> | undefined;
- *   loading: boolean;
  * }} props
  */
-export default function BumpsBreakdown({ themes, loading }) {
-  if (loading) {
-    return (
-      <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3 min-h-[18rem]">
-        <h2 className="font-display text-base text-text-primary">Bumps breakdown</h2>
-        <MentorLoadingInline className="flex-1 justify-center" />
-      </section>
-    )
-  }
-
+export default function BumpsBreakdown({ themes }) {
   if (!themes || themes.length === 0) {
     return (
       <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3 min-h-[14rem]">

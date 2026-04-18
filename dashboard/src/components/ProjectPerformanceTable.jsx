@@ -1,6 +1,5 @@
 import { severityColor } from '../lib/severityColors'
 import { frustrationTier } from '../lib/frustrationTier'
-import MentorLoadingInline from './MentorLoadingInline'
 import WidgetEmptyState from './WidgetEmptyState'
 
 function formatProjectCell(name) {
@@ -10,19 +9,9 @@ function formatProjectCell(name) {
 /**
  * @param {{
  *   rows: Array<{ project: string; sessions: number; messages: number; avgTimeMinutes: number; frustrationPercent: number }> | undefined;
- *   loading: boolean;
  * }} props
  */
-export default function ProjectPerformanceTable({ rows, loading }) {
-  if (loading) {
-    return (
-      <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3">
-        <h2 className="font-display text-base text-text-primary">Project performance</h2>
-        <MentorLoadingInline />
-      </section>
-    )
-  }
-
+export default function ProjectPerformanceTable({ rows }) {
   if (!rows || rows.length === 0) {
     return (
       <section className="bg-surface-900 rounded-xl border border-border-subtle p-4 flex flex-col gap-3">
