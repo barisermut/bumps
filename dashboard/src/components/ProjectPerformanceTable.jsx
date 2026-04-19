@@ -75,6 +75,9 @@ export default function ProjectPerformanceTable({ rows, insights }) {
             <th className="py-2 pr-4 font-medium whitespace-nowrap">
               Frustration
             </th>
+            <th className="py-2 pr-0 font-medium whitespace-nowrap text-right">
+              Insight
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -92,25 +95,9 @@ export default function ProjectPerformanceTable({ rows, insights }) {
                 }
               >
                 <td className="py-2.5 pr-4 min-w-0 max-w-[14rem] sm:max-w-none">
-                  <div className="flex items-center justify-between gap-2 min-w-0">
-                    <span className="text-text-primary font-medium truncate min-w-0">
-                      {formatProjectCell(r.project)}
-                    </span>
-                    {insightText ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setActive({
-                            project: r.project,
-                            insight: insightText,
-                          })
-                        }
-                        className="shrink-0 text-[11px] text-text-muted hover:text-text-primary cursor-pointer whitespace-nowrap"
-                      >
-                        View insight →
-                      </button>
-                    ) : null}
-                  </div>
+                  <span className="text-text-primary font-medium truncate block min-w-0">
+                    {formatProjectCell(r.project)}
+                  </span>
                 </td>
                 <td className="py-2.5 pr-4 tabular-nums text-text-secondary">
                   {r.sessions}
@@ -134,6 +121,22 @@ export default function ProjectPerformanceTable({ rows, insights }) {
                       {label}
                     </span>
                   </span>
+                </td>
+                <td className="py-2.5 pl-2 pr-0 text-right align-middle whitespace-nowrap">
+                  {insightText ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActive({
+                          project: r.project,
+                          insight: insightText,
+                        })
+                      }
+                      className="text-[11px] text-text-muted hover:text-text-primary cursor-pointer"
+                    >
+                      View insight →
+                    </button>
+                  ) : null}
                 </td>
               </tr>
             )

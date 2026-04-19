@@ -39,13 +39,12 @@ function previewCacheStatus(parsedData) {
 }
 
 /**
- * Rough wall-clock estimate for composer-2-fast (42s at ~7000 prompt tokens).
+ * Rough wall-clock estimate for mentor analysis by prompt size.
  * @param {number} tokens
  * @returns {number}
  */
 function estimateMentorSeconds(tokens) {
-  const raw = Math.round((Number(tokens) / 7000) * 42);
-  return Math.max(15, Math.min(90, raw));
+  return Math.max(15, Math.round(tokens * 0.00174));
 }
 
 /**

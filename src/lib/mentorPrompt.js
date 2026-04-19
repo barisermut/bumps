@@ -214,6 +214,7 @@ function mapRow(c) {
 }
 
 function assemblePrompt(sessionRows, projectArcs, stats) {
+  const projectNames = [...new Set(projectArcs.map((a) => a.project))];
   return [
     "You are Bumps Mentor, analyzing a single developer's conversation history with Cursor. Identify behavioral patterns that slow this builder down; output structured JSON only.",
     "",
@@ -226,8 +227,9 @@ function assemblePrompt(sessionRows, projectArcs, stats) {
     "- Every insights[] entry MUST cite evidence from at least three distinct sessions: sessionCount must be at least 3, and projects must list at least three distinct project names from the data. Drop weaker insights.",
     "- toolsAndMcps MUST only contain entries from each session's skillsUsed and mcpServers fields. Never include internal file operation tools (read file, edit file, write file, ripgrep search, grep, glob, terminal, run command, or any Cursor tool name). Count sessions where each skill or MCP server appears.",
     "- insights max 6. themes max 6. topPatterns max 5. toolsAndMcps max 8.",
-    "- perProject[].insight: one to two sentences, plain English, specific to that project's sessions only. Describe one observation about what makes this project's sessions distinct from the others. Do not print numbers, decimals, or percentages.",
+    `- perProject MUST contain one entry for every project listed here: ${projectNames.join(", ")}. Each entry MUST have a non-empty insight field. One sentence identifying either the biggest friction pattern OR the most effective working pattern specific to this project — whichever is more pronounced in the data. If the project shows strong momentum and clean sessions, say so. If it shows recurring friction, name it. Write as direct coaching, not observation. Example positive: 'Sessions here are focused and ship cleanly — the narrow scope per chat is working well.' Example negative: 'Sessions balloon when a small fix reveals a deeper config issue — timebox config work before touching features.' No project may be omitted. No insight may be left empty.`,
     "- This developer uses an agentic coding tool. Do not treat linesChanged alone as a problem; focus on correction cycles, mid-session drift (middleSignals), abandonment, and repeated friction.",
+    "- Insights must reflect the full picture — include both friction patterns (what slows the builder down) and effective patterns (what works well). Aim for at least one insight that highlights something working well, not just problems.",
     "",
     "Schema (top-level object):",
     "{",
@@ -266,6 +268,39 @@ function assemblePrompt(sessionRows, projectArcs, stats) {
   ].join("\n");
 }
 
+function selectRepresentativeSessions(list) {
+  const chrono = [...list].sort((a, b) => {
+    const ta = conversationTimeMs(a) ?? 0;
+    const tb = conversationTimeMs(b) ?? 0;
+    if (ta !== tb) return ta - tb;
+    return (a.userMessageCount || 0) - (b.userMessageCount || 0);
+  });
+
+  const n = chrono.length;
+  if (n <= MAX_SESSIONS_PER_PROJECT) return chrono;
+
+  const oldest = [0, 1];
+  const newest = [n - 2, n - 1];
+
+  const middleStart = 2;
+  const middleEnd = n - 3;
+  const middleAvailable = middleEnd - middleStart + 1;
+  const middleCount = Math.min(6, middleAvailable);
+
+  const middleIdx = new Set();
+  if (middleCount > 0) {
+    const span = middleAvailable - 1;
+    for (let i = 0; i < middleCount; i++) {
+      const frac = (i + 1) / (middleCount + 1);
+      middleIdx.add(middleStart + Math.round(frac * span));
+    }
+  }
+
+  const indices = [...oldest, ...middleIdx, ...newest].sort((a, b) => a - b);
+  const unique = [...new Set(indices)];
+  return unique.map((i) => chrono[i]);
+}
+
 /**
  * @param {{ conversations?: object[] }} parsedData
  */
@@ -273,33 +308,27 @@ function buildMentorPromptBundle(parsedData) {
   const stats = computeMentorStats(parsedData);
   const qualifying = getQualifyingConversations(parsedData);
 
-  const sorted = [...qualifying].sort((a, b) => {
-    const ta = conversationTimeMs(a) ?? 0;
-    const tb = conversationTimeMs(b) ?? 0;
-    if (tb !== ta) return tb - ta;
-    return (b.userMessageCount || 0) - (a.userMessageCount || 0);
-  });
-
   const byProject = new Map();
-  for (const c of sorted) {
+  for (const c of qualifying) {
     const p = c.project || "Unknown";
     if (!byProject.has(p)) byProject.set(p, []);
     byProject.get(p).push(c);
   }
 
-  const picked = [];
-  for (const [, list] of byProject) {
-    for (let i = 0; i < Math.min(MAX_SESSIONS_PER_PROJECT, list.length); i++) {
-      picked.push(list[i]);
-    }
-  }
-
-  picked.sort((a, b) => {
-    const ta = conversationTimeMs(a) ?? 0;
-    const tb = conversationTimeMs(b) ?? 0;
-    if (tb !== ta) return tb - ta;
-    return (b.userMessageCount || 0) - (a.userMessageCount || 0);
+  const projectOrder = [...byProject.keys()].sort((a, b) => {
+    const maxA = Math.max(
+      ...byProject.get(a).map((c) => conversationTimeMs(c) ?? 0)
+    );
+    const maxB = Math.max(
+      ...byProject.get(b).map((c) => conversationTimeMs(c) ?? 0)
+    );
+    return maxB - maxA;
   });
+
+  const picked = [];
+  for (const p of projectOrder) {
+    picked.push(...selectRepresentativeSessions(byProject.get(p)));
+  }
 
   let capped = picked.slice(0, MAX_SESSIONS_TOTAL);
   let sessionRows = capped.map(mapRow);

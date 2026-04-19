@@ -324,7 +324,7 @@ async function main() {
 
       console.log(
         style.out(
-          `  Estimated analysis time: ~${estSec} seconds (${tokens.toLocaleString()} tokens)`
+          `  Estimated analysis time: ~${estSec} seconds`
         )
       );
       console.log("");
