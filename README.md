@@ -2,7 +2,7 @@
 
 **Your Cursor history. Your patterns. Fully local.**
 
-Bumps is a small dashboard that reads **Cursor** conversation data from your machine and turns it into **plain, deterministic insights** — where you stall, how you prompt, what seemed to work. **No cloud, no API keys, no LLM in the loop:** the same history always produces the same numbers and labels.
+Bumps is a small dashboard that reads **Cursor** conversation data from your machine. **Mirror** mode turns it into **plain, deterministic insights** — where you stall, how you prompt, what seemed to work — with **no cloud** and **no LLM**: the same history always produces the same numbers and labels. **Mentor** mode adds **AI-powered behavioral insights** using **your own Cursor Agent CLI**, running locally on your machine.
 
 ---
 
@@ -12,13 +12,16 @@ Cursor chats pile up across projects. It’s hard to see **patterns** — what k
 
 ## The solution
 
-**One command. One page. All on your computer.**
+**Start the CLI. One page. All on your computer.**
 
 ```bash
 npx getbumps
+npx getbumps --mode=mentor   # after Cursor Agent CLI setup — see Requirements
 ```
 
-Your browser opens to **[http://127.0.0.1:3456](http://127.0.0.1:3456)** (default port **3456**). The CLI prints what it’s doing—including **Parsed in X ms** after reading your local Cursor history (no PII)—reminds you that **nothing is sent anywhere**, and you stop the server with **Ctrl+C** when you’re done. The dashboard keeps the first paint light by loading the **Your bumps** Recharts widget in a separate JavaScript chunk after the shell.
+**Mirror** (default): instant, rule-based analytics — same as the original product. **Mentor**: uses the Cursor Agent CLI for a separate dashboard; setup is local and under your account.
+
+Your browser opens to **[http://127.0.0.1:3456](http://127.0.0.1:3456)** (default port **3456**). The CLI prints what it’s doing—including **Parsed in X ms** after reading your local Cursor history (no PII)—reminds you that **nothing is sent to a third-party service**, and you stop the server with **Ctrl+C** when you’re done. The dashboard keeps the first paint light by loading the **Your bumps** Recharts widget in a separate JavaScript chunk after the shell.
 
 **URL tip:** the server listens on **IPv4 loopback (`127.0.0.1`)** only, not `::1`. On some systems, `http://localhost:…` resolves to IPv6 first and may not reach the app — if that happens, use **`http://127.0.0.1:<port>`** explicitly (or map `localhost` to `127.0.0.1` in your hosts file).
 
@@ -40,7 +43,8 @@ getbumps --port=3457
 |                         |                                                                                                                                        |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | **Local only**          | Data is read from Cursor’s on-disk storage on your machine. Nothing is uploaded or sent to a third party.                              |
-| **No LLM “insights”**   | There is no model call to “interpret” your chats. The app **parses** history and runs **fixed rules** (counts, buckets, simple stats). |
+| **Mirror — no LLM**   | Mirror mode does not call a model to “interpret” your chats. It **parses** history and runs **fixed rules** (counts, buckets, simple stats). |
+| **Mentor — your CLI** | Mentor mode uses **your own Cursor Agent CLI** running locally. Your data never leaves your machine. Analysis runs under **your own Cursor account**. |
 | **Read-only**           | SQLite databases are opened read-only.                                                                                                 |
 | **You control the run** | The server binds to **127.0.0.1** (loopback only, not all interfaces); you choose when to start and stop it.                           |
 
@@ -49,11 +53,9 @@ getbumps --port=3457
 
 ## What you get
 
-- **Your Biggest Bump** — the dominant stuck pattern in the selected scope  
-- **Your Bumps** — recurring topics where sessions clustered  
-- **Scope Drift** — when new concepts show up over time (per project)  
-- **Prompt Habits** — short vs long prompts vs rough “resolution” signals  
-- **What Worked** — fast prompt shapes, cleaner file-type areas, **Helpful Support** (rules, tools, skills, transcript context), MCP usage, model follow-up stats (where the data exists); stat cards use exact session counts for the current filters and may show a short trust line about merged sources
+**Mirror:** widgets on the Mirror dashboard — **Your Biggest Bump**, **Your Bumps**, **Scope Drift**, **Prompt Habits**, **What Worked** (fast prompt shapes, file-type areas, Helpful Support, MCP usage, model follow-up stats where data exists); stat cards use exact session counts for the current filters and may show a short trust line about merged sources.
+
+**Mentor:** the Mentor dashboard — behavioral insights from the same local history via your Cursor Agent CLI (see [CLAUDE.md](CLAUDE.md) for flow and files).
 
 Filters: **project** and **time range** (e.g. today, last 7 days, all time).
 
@@ -77,6 +79,7 @@ If you need fully pinned installs for the published package, track or request **
 - **Node.js** (LTS recommended — e.g. 20.x or 22.x)  
 - **macOS** for v1 — paths follow Cursor’s default layout under your user Library (and related Cursor paths). Other OS support is not the focus yet.  
 - **Cursor** — this release targets Cursor only (not Claude Code, Windsurf, etc.).
+- **Cursor Agent CLI** (required for Mentor mode, free one-time setup via `agent login`)
 
 ---
 
@@ -98,11 +101,10 @@ If you need fully pinned installs for the published package, track or request **
 Cursor local files (global DB, workspace DBs, agent store, JSONL transcripts)
         → parser (read-only) — one canonical session per composerId, merged sources
         → in-memory structured sessions
-        → analyzer (deterministic rules) — insights include a small meta block (counts, trust copy)
-        → Express API + static React dashboard
+        → Mirror: analyzer (deterministic rules) — insights + small meta block (counts, trust copy)
+        → Mentor: mentor pipeline (Cursor Agent CLI on your machine) — behavioral insights
+        → Express API + static React dashboard (MirrorDashboard / MentorDashboard by mode)
 ```
-
-There is **no** separate “AI insight” service — only parsing and rule-based analysis.
 
 ---
 
