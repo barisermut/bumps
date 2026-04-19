@@ -97,21 +97,23 @@ export default function MentorDashboard() {
           </div>
         ) : null}
 
-        <MentorStatCards stats={snap?.stats} />
+        <div className="flex flex-col gap-6">
+          <MentorStatCards stats={snap?.stats} />
 
-        <MentorInsightsSection insights={snap?.mentor?.insights} />
+          <MentorInsightsSection insights={snap?.mentor?.insights} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          <BumpsBreakdown themes={snap?.mentor?.themes} />
-          <TopPatterns patterns={snap?.mentor?.topPatterns} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <BumpsBreakdown themes={snap?.mentor?.themes} />
+            <TopPatterns patterns={snap?.mentor?.topPatterns} />
+          </div>
+
+          <ToolsMcpsChart items={snap?.mentor?.toolsAndMcps} />
+
+          <ProjectPerformanceTable
+            rows={snap?.stats?.perProject}
+            insights={snap?.mentor?.perProject}
+          />
         </div>
-
-        <ToolsMcpsChart items={snap?.mentor?.toolsAndMcps} />
-
-        <ProjectPerformanceTable
-          rows={snap?.stats?.perProject}
-          insights={snap?.mentor?.perProject}
-        />
       </main>
     </div>
   )

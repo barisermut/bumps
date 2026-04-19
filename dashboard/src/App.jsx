@@ -23,6 +23,14 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (
+      import.meta.env.DEV &&
+      new URLSearchParams(window.location.search).get('devMentor') === '1'
+    ) {
+      setMode('mentor')
+      return
+    }
+
     fetch('/api/mode')
       .then((r) => r.json())
       .then((d) => setMode(d.mode === 'mentor' ? 'mentor' : 'mirror'))
